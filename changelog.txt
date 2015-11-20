@@ -1,1 +1,2 @@
 11/20/15-15:48:09: Added gitignore file.
+11/20/15-22:10:10: Adding checks on dataset before computation.
