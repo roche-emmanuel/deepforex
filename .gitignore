@@ -1,3 +1,5 @@
 # Ignore the data folder:
-
 data/
+
+# Ignore the Rhistory file:
+.Rhistory
