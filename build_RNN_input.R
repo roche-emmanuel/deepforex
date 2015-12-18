@@ -104,6 +104,7 @@ rnnNormalizeDataset <- function(data)
   data$fdev <- attributes(data$forcasts)[["scaled:scale"]]
   
   # Additionally we take the tanh of the forcast to get in the range (-1,1)
+  data$forcasts <- tanh(data$forcasts)
   
   # Now we also need to rescale the inputs:
   # We should use all the available input symbols:
