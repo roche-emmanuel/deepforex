@@ -99,15 +99,24 @@ finalizeDataset <- function(data)
   
   #data <- cbind(data$date,weektime,data[,2:ncol(data)])
   
+  data
+}
+
+# Method used to check the dates in the dataset
+checkDates <- function(data)
+{
   # Check the number of time steps on each day:
   # We start with generating a summary of the start / stop times for each day:
+  
+  # prepare a custom function for the parsing of the day:
+  custom <- function(date) { as.POSIXlt(date[1])$wday - 1 }
   
   print("Checking day time steps range...")
   daytimes <- ddply(data,"date",summarize,
                     starttime=min(time), 
                     stoptime=max(time), 
                     nsteps = length(time), 
-                    day = as.POSIXlt(date[1])$wday - 1)
+                    day = custom(date))
   
   # Now with the previous daytimes dataset, we should check if
   # we have the same range for each given day:
@@ -117,7 +126,55 @@ finalizeDataset <- function(data)
                     stopstatus=max(stoptime)==min(stoptime),
                     stepstatus=max(nsteps)==min(nsteps))
   
-  print(sumtimes)
+  sumtimes
+}
+
+# Given a column of data, we can check how this data varies after a given number of time step
+# for instance given close prices for EURUSD, we can compute how the close prices are distributed relative to the
+# current close price in X minutes:
+getFutureDistribution <- function(prices,nsteps)
+{
+  # Retrieve the number of rows in the dataframe:
+  len <- dim(prices)[1]
   
-  data
+  # retrieve the future values only:
+  future <- prices[(nsteps+1):len,]
+  
+  # retrieve the present values only that can be used for the comparaison:
+  present <- prices[1:(len-nsteps),]
+  
+  # substract the values:
+  diff <- future - present
+  
+  # compute the mean and the variance of the differences:
+  mrow <- sapply(diff,mean)
+  sdrow <- sapply(diff,sd)
+  
+  sdrow
+}
+
+# Method used to compute the evolution of the variance on a given range of steps:
+computeVarianceEvolution <- function(prices, steps)
+{
+  num <- length(steps)
+  result <- NULL
+  # result <- data.table(steps = integer(num))
+  
+#   names <- names(prices)
+#   len <- length(names)
+#   for(i in seq_along(names)) {
+#     result <- cbind(result,data.table(x=numeric(num)))
+#   }
+  
+  for(i in seq_along(steps)) {
+    res <- getFutureDistribution(prices,steps[i])
+    # result[i,] <- c(i,res)
+    result <- rbind(result,res)
+  }
+  
+  result <- cbind(steps,result)
+  #names(result)[1] <- "num_steps"
+  row.names(result) <- NULL
+  
+  result
 }
