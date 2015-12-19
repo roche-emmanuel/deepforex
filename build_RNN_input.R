@@ -137,7 +137,7 @@ rnnNormalizeDataset <- function(data, norms = NULL)
   }
   
   cnames <- as.vector(outer(c("open","high","low","close"),tolower(allsymbols),FUN=mpaste))
-  prices <- data$input[,cnames,with=F]
+  prices <- data$inputs[,cnames,with=F]
   
   if(!is.null(norms))
   {
@@ -149,7 +149,7 @@ rnnNormalizeDataset <- function(data, norms = NULL)
   {
     print("Computing input data normalization...")
     # first we just compute the mean/dev from the close prices in the input:
-    cprices <- data$input[,paste0(tolower(allsymbols),"_close"),with=F]
+    cprices <- data$inputs[,paste0(tolower(allsymbols),"_close"),with=F]
     means <- colMeans(cprices)
     devs <- apply(cprices,2,sd) 
     
@@ -171,9 +171,15 @@ rnnNormalizeDataset <- function(data, norms = NULL)
   
   # Reconstruct the input dataframe:
   # Note that in this process we discard the volume columns
-  inputs <- data$input[,c("date","weektime","time"),with=F]
+  #inputs <- data$inputs[,c("date","weektime","time"),with=F]
   
-  data$inputs <- cbind(inputs,prices)
+  # The weektime should also be normalized in the range [-1,1]:
+  weektime <- (data$inputs$weektime/(5*24*60) - 0.5)*2.0
+  
+  # Also normalize the daytime:
+  daytime <- (data$inputs$time/(24*60) - 0.5)*2.0
+  
+  data$inputs <- cbind(data$date,weektime,daytime,prices)
   
   # return the dataset:
   data
