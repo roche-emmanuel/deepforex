@@ -1,10 +1,42 @@
+-- print("OS: ", jit.os)
+-- print("arch: ", jit.arch)
+
+root_path = paths.cwd()
+-- print("Root path: ", root_path)
+
+package.path = root_path.."/?.lua;"..root_path.."/?/init.lua;"..root_path.."/packages/?.lua;"..package.path
+-- package.cpath = path.."bin/"..flavor.."/modules/?.dll;".. path.."bin/"..flavor.."/modules/?51.dll;" ..package.cpath
+
+-- global level definition of comment methods:
+createClass = require("base.ClassBuilder")()
+log = require("log.DefaultLogger")
+trace = require("log.DefaultTracer")
+
+CHECK = function(cond,msg,...)
+  if not cond then
+    log:error(msg,...)
+    log:error("Stack trace: ",debug.traceback())
+    error("Stopping because a static assertion error occured.")
+  end
+end
+
+PROTECT = function(func,...)
+  local status, res = pcall(func,...)
+  if not status then
+    log:error("Error detected: ",res)
+  end
+end
+
+config_file = "dforex_config"
+
+
 require 'torch'
 require 'nn'
 require 'nngraph'
 require 'optim'
 require 'lfs'
 
-local FOREXLoader = require "FOREXLoader"
+local ForexLoader = require "utils.ForexLoader"
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -91,6 +123,6 @@ end
 if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
 
 -- prepare the loader:
-local loader = FOREXLoader.create(opt.data_dir, opt.batch_size, opt.seq_length, split_sizes)
+local loader = ForexLoader.create(opt.data_dir, opt.batch_size, opt.seq_length, split_sizes)
 
 print("Training done.")

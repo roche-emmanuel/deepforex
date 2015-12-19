@@ -2,16 +2,17 @@
 -- Modified from https://github.com/oxford-cs-ml-2015/practical6
 -- the modification included support for train/val/test splits
 
-local ForexMinibatchLoader = {}
-ForexMinibatchLoader.__index = ForexMinibatchLoader
+local ForexLoader = {}
+ForexLoader.__index = ForexLoader
 
-function ForexMinibatchLoader.create(data_dir, batch_size, seq_length, split_fractions)
+function ForexLoader.create(data_dir, batch_size, seq_length, split_fractions)
     -- split_fractions is e.g. {0.9, 0.05, 0.05}
 
     print("Loadind FOREX dataset...")
     local self = {}
-    setmetatable(self, ForexMinibatchLoader)
+    setmetatable(self, ForexLoader)
 
+    
     -- first we should load the dataset settings
 
     -- local inputs_file = path.join(data_dir, 'input.txt')
@@ -38,7 +39,7 @@ function ForexMinibatchLoader.create(data_dir, batch_size, seq_length, split_fra
     -- if run_prepro then
     --     -- construct a tensor with all the data, and vocab file
     --     print('one-time setup: preprocessing input text file ' .. inputs_file .. '...')
-    --     ForexMinibatchLoader.text_to_tensor(inputs_file, vocab_file, tensor_file)
+    --     ForexLoader.text_to_tensor(inputs_file, vocab_file, tensor_file)
     -- end
 
     -- print('loading data files...')
@@ -101,12 +102,12 @@ function ForexMinibatchLoader.create(data_dir, batch_size, seq_length, split_fra
     return self
 end
 
-function ForexMinibatchLoader:reset_batch_pointer(split_index, batch_index)
+function ForexLoader:reset_batch_pointer(split_index, batch_index)
     batch_index = batch_index or 0
     self.batch_ix[split_index] = batch_index
 end
 
-function ForexMinibatchLoader:next_batch(split_index)
+function ForexLoader:next_batch(split_index)
     if self.split_sizes[split_index] == 0 then
         -- perform a check here to make sure the user isn't screwing something up
         local split_names = {'train', 'val', 'test'}
@@ -126,7 +127,7 @@ function ForexMinibatchLoader:next_batch(split_index)
 end
 
 -- *** STATIC method ***
-function ForexMinibatchLoader.text_to_tensor(in_textfile, out_vocabfile, out_tensorfile)
+function ForexLoader.text_to_tensor(in_textfile, out_vocabfile, out_tensorfile)
     local timer = torch.Timer()
 
     print('loading text file...')
@@ -179,5 +180,5 @@ function ForexMinibatchLoader.text_to_tensor(in_textfile, out_vocabfile, out_ten
     torch.save(out_tensorfile, data)
 end
 
-return ForexMinibatchLoader
+return ForexLoader
 
