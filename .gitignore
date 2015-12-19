@@ -1,5 +1,8 @@
 # Ignore the data folder:
 data/
 
+# Ignore the inputs folder:
+inputs/
+
 # Ignore the Rhistory file:
 .Rhistory

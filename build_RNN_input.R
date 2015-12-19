@@ -3,7 +3,8 @@
 source("analysis_tools.R")
 
 # Core function to generate input dataset:
-rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, offsets = NULL, cov.range = NULL)
+rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, 
+                                    offsets = NULL, cov.range = NULL, norms = NULL)
 {
   if(is.null(isyms)) {
     print("Using default input symbol list.")
@@ -36,7 +37,7 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, o
   print("Computing forcasts...")
   data <- rnnComputeForcast(data,fsyms,offsets)
   print("Normalizing dataset...")
-  data <- rnnNormalizeDataset(data)
+  data <- rnnNormalizeDataset(data, norms)
 }
 
 # retrieve the raw data:
@@ -100,16 +101,28 @@ rnnComputeForcast <- function(data,symbols,offsets)
   data
 }
 
-rnnNormalizeDataset <- function(data)
+rnnNormalizeDataset <- function(data, norms = NULL)
 {
   # Compute the means and std devs:
   # data$fmeans <- colMeans(forcasts)
   # data$fdev <- apply(forcast,2,sd)
   
   # Normalize the forcast data:
-  data$forcasts <- as.data.table(scale(data$forcasts))
-  data$fmeans <- attributes(data$forcasts)[["scaled:center"]]
-  data$fdev <- attributes(data$forcasts)[["scaled:scale"]]
+  if(!is.null(norms)) 
+  {
+    print("Normalizing forcast data with refs...")
+    data$forcasts <- as.data.table(scale(data$forcasts,center=norms$fmeans, scale=norms$fdevs))
+    data$fmeans <- norms$fmeans
+    data$fdevs <- norms$fdevs
+  }
+  else 
+  {
+    print("Computing forcast data normalization...")
+    scaled <- scale(data$forcasts)
+    data$forcasts <- as.data.table(scaled)
+    data$fmeans <- attributes(scaled)[["scaled:center"]]
+    data$fdevs <- attributes(scaled)[["scaled:scale"]]
+  }
   
   # Additionally we take the tanh of the forcast to get in the range (-1,1)
   data$forcasts <- tanh(data$forcasts)
@@ -117,15 +130,6 @@ rnnNormalizeDataset <- function(data)
   # Now we also need to rescale the inputs:
   # We should use all the available input symbols:
   allsymbols <- data$symbols
-  cprices <- data$input[,paste0(tolower(allsymbols),"_close"),with=F]
-  
-  # first we just compute the mean/dev from the close prices in the input:
-  means <- colMeans(cprices)
-  devs <- apply(cprices,2,sd) 
-    
-  # Repeat the means/devs 4 times for each symbol:
-  means <- rep(means,each=4)
-  devs <- rep(devs,each=4)
   
   # get all the columns of interest:
   mpaste <- function(A,B) {
@@ -133,19 +137,37 @@ rnnNormalizeDataset <- function(data)
   }
   
   cnames <- as.vector(outer(c("open","high","low","close"),tolower(allsymbols),FUN=mpaste))
-  
   prices <- data$input[,cnames,with=F]
   
-  # Assign the names for the means:
-  names(means) <- cnames
-  names(devs) <- cnames
-  
-  # store the means/devs in the dataset:
-  data$imeans <- means
-  data$idevs <- devs
+  if(!is.null(norms))
+  {
+    print("Normalizing input data with refs...")
+    data$imeans <- norms$imeans
+    data$idevs <- norms$idevs
+  }
+  else
+  {
+    print("Computing input data normalization...")
+    # first we just compute the mean/dev from the close prices in the input:
+    cprices <- data$input[,paste0(tolower(allsymbols),"_close"),with=F]
+    means <- colMeans(cprices)
+    devs <- apply(cprices,2,sd) 
+    
+    # Repeat the means/devs 4 times for each symbol:
+    means <- rep(means,each=4)
+    devs <- rep(devs,each=4)
+    
+    # Assign the names for the means:
+    names(means) <- cnames
+    names(devs) <- cnames
+    
+    # store the means/devs in the dataset:
+    data$imeans <- means
+    data$idevs <- devs    
+  }
   
   # Rescale the prices:
-  prices <- scale(prices,center=means, scale=devs)
+  prices <- scale(prices,center=data$imeans, scale=data$idevs)
   
   # Reconstruct the input dataframe:
   # Note that in this process we discard the volume columns
@@ -155,4 +177,41 @@ rnnNormalizeDataset <- function(data)
   
   # return the dataset:
   data
+}
+
+# Method used to write the input dataset into a given input folder
+rnnWriteDataset <- function(data,folder)
+{
+  path <- paste0("inputs/",folder)
+  
+  # create the target folder:
+  if(!dir.exists(path))
+  {
+    print(paste("Creating folder",path))
+    dir.create(path,recursive = T)
+  }
+  else
+  {
+    # The folder already exist, we should clean it:
+    print(paste("Cleaning folder",path))
+    rmfile <- function(fname)
+    {
+      file.remove(paste0(path,"/",fname))
+    }
+    do.call(rmfile,list(list.files(path)))
+  }
+  
+  # write the input dataset:
+  write.csv(data$inputs,paste0(path,"/inputs.csv"),row.names=F)
+  
+  # write the forcasts:
+  write.csv(data$forcasts,paste0(path,"/forcasts.csv"),row.names=F)
+  
+  # write the inputs means/devs:
+  write.csv(data$imeans,paste0(path,"/imeans.csv"),row.names=F)
+  write.csv(data$idevs,paste0(path,"/idevs.csv"),row.names=F)
+  
+  # write the forcasts means/devs:
+  write.csv(data$fmeans,paste0(path,"/fmeans.csv"),row.names=F)
+  write.csv(data$fdevs,paste0(path,"/fdevs.csv"),row.names=F)
 }
