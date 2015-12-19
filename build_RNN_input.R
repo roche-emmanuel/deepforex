@@ -215,10 +215,26 @@ rnnWriteDataset <- function(data,folder)
   write.csv(data$forcasts,paste0(path,"/forcasts.csv"),row.names=F)
   
   # write the inputs means/devs:
-  write.csv(data$imeans,paste0(path,"/imeans.csv"),row.names=F)
-  write.csv(data$idevs,paste0(path,"/idevs.csv"),row.names=F)
+  #write.csv(data$imeans,paste0(path,"/imeans.csv"),row.names=F)
+  #write.csv(data$idevs,paste0(path,"/idevs.csv"),row.names=F)
   
   # write the forcasts means/devs:
-  write.csv(data$fmeans,paste0(path,"/fmeans.csv"),row.names=F)
-  write.csv(data$fdevs,paste0(path,"/fdevs.csv"),row.names=F)
+  #write.csv(data$fmeans,paste0(path,"/fmeans.csv"),row.names=F)
+  #write.csv(data$fdevs,paste0(path,"/fdevs.csv"),row.names=F)
+  
+  # for convinience, we also write the number of samples available:
+  len <- dim(data$inputs)[1]
+  if(len != dim(data$forcasts)[1])
+  {
+    stop("Mismatch in inputs and forcasts datasets")
+  }
+  
+  cfgfile <- paste0(path,"/","dataset.lua") 
+  cat("return {", file=cfgfile, sep="\n")
+  cat(paste0("\tnum_rows = ",len,","), file=cfgfile, sep="\n", append=T)
+  cat(paste0("\timeans = { ",paste(data$imeans,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  cat(paste0("\tidevs = { ",paste(data$idevs,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  cat(paste0("\tfmeans = { ",paste(data$fmeans,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  cat(paste0("\tfdevs = { ",paste(data$fdevs,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  cat("}", file=cfgfile, sep="\n", append=T)
 }
