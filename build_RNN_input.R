@@ -179,7 +179,7 @@ rnnNormalizeDataset <- function(data, norms = NULL)
   # Also normalize the daytime:
   daytime <- (data$inputs$time/(24*60) - 0.5)*2.0
   
-  data$inputs <- cbind(data$date,weektime,daytime,prices)
+  data$inputs <- cbind(data$inputs[,"date",with=F],weektime,daytime,prices)
   
   # return the dataset:
   data
@@ -208,7 +208,8 @@ rnnWriteDataset <- function(data,folder)
   }
   
   # write the input dataset:
-  write.csv(data$inputs,paste0(path,"/inputs.csv"),row.names=F)
+  # Note that we do not write the dates in this file:
+  write.csv(data$inputs[,-c("date"),with=F],paste0(path,"/inputs.csv"),row.names=F)
   
   # write the forcasts:
   write.csv(data$forcasts,paste0(path,"/forcasts.csv"),row.names=F)
