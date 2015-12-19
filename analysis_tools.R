@@ -12,10 +12,11 @@ data_path <- "data"
 # load the dependency packages:
 library(data.table)
 library(plyr)
+library(fasttime)
 
 # Method used to generate a complete dataset for a given list
 # of symbols and a given periodicity:
-generateDataset <- function(symbols,period)
+generateDataset <- function(symbols,period,cov.range=NULL)
 {
   result <- NULL
   
@@ -25,7 +26,8 @@ generateDataset <- function(symbols,period)
     
     # load the dataset:
     print(paste0("Loading dataset ",dpath,"..."))
-    data <- fread(dpath)
+    # Note that we discard the volume column here:
+    data <- fread(dpath,select=1:6)
     
     print("Checking symbol dataset...")    
     checkSymbolDataset(data)
@@ -37,8 +39,8 @@ generateDataset <- function(symbols,period)
                      paste0(sname,"_open"),
                      paste0(sname,"_high"),
                      paste0(sname,"_low"),
-                     paste0(sname,"_close"),
-                     paste0(sname,"_volume"))
+                     paste0(sname,"_close"))
+                     #paste0(sname,"_volume"))
     
     if(is.null(result)) 
     {
@@ -52,14 +54,14 @@ generateDataset <- function(symbols,period)
   }
   
   print("Finalizing symbols dataset...")
-  finalizeDataset(result)
+  finalizeDataset(result,cov.range)
 }
 
 # method used to check basic components on a single symbol dataset:
 checkSymbolDataset <- function(data)
 {
   # Start with changing the col names:
-  names(data) <- c("date","time","open","high","low","close","volume")
+  names(data) <- c("date","time","open","high","low","close") #,"volume")
   
   # Check that high is always bigger or equal to all prices:
   bad <- data$high < data$open || data$high < data$low || data$high < data$close
@@ -75,11 +77,20 @@ checkSymbolDataset <- function(data)
 }
 
 # Method used to format the final dataset as desired
-finalizeDataset <- function(data)
+finalizeDataset <- function(data, cov.range=NULL)
 {
   # Update the date format:
   print("Updating dates...")
-  data$date <- as.Date(data$date,"%Y.%m.%d")
+  # data$date <- as.Date(data$date,"%Y.%m.%d")
+  data$date <- fastPOSIXct(data$date,tz="GMT")
+  
+  # if a covarage range is provided, then we should select only that part of the data:
+  if(!is.null(cov.range))
+  {
+    cmin <- as.POSIXct(cov.range[1])
+    cmax <- as.POSIXct(cov.range[2])
+    data <- data[data$date >= cmin & data$date < cmax, ]
+  }
   
   # Update the time format:
   print("Updating times...")

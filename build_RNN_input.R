@@ -3,7 +3,7 @@
 source("analysis_tools.R")
 
 # Core function to generate input dataset:
-rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, offsets = NULL)
+rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, offsets = NULL, cov.range = NULL)
 {
   if(is.null(isyms)) {
     print("Using default input symbol list.")
@@ -25,16 +25,24 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL, o
     offsets = 5:10
   }
   
+  if(is.null(cov.range)) {
+    print("Using coverage on 2004")
+    cov.range <- c("2004-01-01","2005-01-01")
+  }
+  
   # first generate the raw dataset:
-  data <- rnnGetRawDataset(isyms,period)
+  print("Generating raw dataset...")
+  data <- rnnGetRawDataset(isyms,period, cov.range)
+  print("Computing forcasts...")
   data <- rnnComputeForcast(data,fsyms,offsets)
+  print("Normalizing dataset...")
   data <- rnnNormalizeDataset(data)
 }
 
 # retrieve the raw data:
-rnnGetRawDataset <- function(symbols, period)
+rnnGetRawDataset <- function(symbols, period, cov.range)
 {
-  data <- generateDataset(symbols, period)
+  data <- generateDataset(symbols, period, cov.range)
   
   # Here we should return a list, containing the input dataframe,
   # The labels dataframe, and the normalization dataframe:
