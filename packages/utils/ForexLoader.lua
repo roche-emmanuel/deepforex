@@ -60,6 +60,8 @@ function Class:initialize(options)
   local bsize = self.batch_size
   local seq_len = self.seq_length
 
+  self.nfeatures = features:size(2)
+
   -- cut off the end so that it divides evenly
   local len = features:size(1)
   CHECK(len== labels:size(1),"Mismatch in features and labels sizes")
@@ -120,6 +122,15 @@ function Class:initialize(options)
 end
 
 --[[
+Function: getInputSize
+
+Retrieve the input size for this dataset features:
+]]
+function Class:getInputSize()
+  return self.nfeatures
+end
+
+--[[
 Function: prepareBatches
 
 Method used to prepare the X/Y batches
@@ -130,6 +141,7 @@ function Class:prepareBatches(features,labels)
   -- for each sequence we use seq_len samples row from the features
   -- in each batch we have batch_size sequences
   self.x_batches = {}
+  self.y_batches = {}
 
   local bsize = self.batch_size
   local seq_len = self.seq_length
@@ -145,24 +157,37 @@ function Class:prepareBatches(features,labels)
   self:debug("Preparing batches...")
 
   local nf = features:size(2)
+  -- we keep only one forcast per network:
+  local nout = 1
+
+  -- Select the forcast index we want to keep:
+  local outid = 1 
 
   local offset = 0
   for i=1,nbatches do
-    local batch = {}
+    local xbatch = {}
+    local ybatch = {}
+
     for t=1,seq_len do
       -- build a tensor corresponding to the sequence element t
       -- eg. we present all the rows of features in batch that arrive
       -- at time t in th sequence:
-      local mat = torch.Tensor(bsize,nf)
+      local xmat = torch.Tensor(bsize,nf)
+      local ymat = torch.Tensor(bsize,nout)
 
       -- fill the data for this tensor:
       for i=1,bsize do
-        mat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
+        xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
+        ymat[{i,{}}] = labels[{offset+(i-1)*seq_len+t,outid}]
       end
 
-      table.insert(batch,mat)
+      table.insert(xbatch,xmat)
+      table.insert(ybatch,ymat)
     end
-    table.insert(self.x_batches,batch)
+
+    table.insert(self.x_batches,xbatch)
+    table.insert(self.y_batches,ybatch)
+    
     offset = offset + bsize*seq_len
   end
 
@@ -202,12 +227,13 @@ function Class:nextBatch(split_index)
   if split_index == 2 then ix = ix + self.ntrain end -- offset by train set size
   if split_index == 3 then ix = ix + self.ntrain + self.nval end -- offset by train + val
   
-  local istart = (ix-1)*self.batch_size+1
-  local iend = istart+self.batch_size-1
-  local fea = self._features[{{istart,iend},{}}]
-  local lbl = self._labels[{{istart,iend},{}}]
-
-  return fea, lbl
+  return self.x_batches[ix], self.y_batches[ix]
+  
+  -- local istart = (ix-1)*self.batch_size+1
+  -- local iend = istart+self.batch_size-1
+  -- local fea = self._features[{{istart,iend},{}}]
+  -- local lbl = self._labels[{{istart,iend},{}}]
+  -- return fea, lbl
 end
 
 --[[
