@@ -55,13 +55,13 @@ cmd:text('Train a FOREX trading agent')
 cmd:text()
 cmd:text('Options')
 -- data
-cmd:option('-data_dir','inputs/2004_01_to_2004_04','data directory. Should contain the input data for the training')
+cmd:option('-data_dir','inputs/2004_01_to_2004_07','data directory. Should contain the input data for the training')
 -- model params
 cmd:option('-rnn_size', 128, 'size of LSTM internal state')
 cmd:option('-num_layers', 2, 'number of layers in the LSTM')
 cmd:option('-model', 'lstm', 'lstm, gru or rnn')
 -- optimization
-cmd:option('-learning_rate',2e-3,'learning rate')
+cmd:option('-learning_rate',2e-5,'learning rate')
 cmd:option('-learning_rate_decay',0.97,'learning rate decay')
 cmd:option('-learning_rate_decay_after',10,'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
@@ -211,8 +211,10 @@ end
 
 -- preprocessing helper function
 function prepro(x,y)
-  x = x:transpose(1,2):contiguous() -- swap the axes for faster indexing
-  y = y:transpose(1,2):contiguous()
+  -- x = x:transpose(1,2):contiguous() -- swap the axes for faster indexing
+  x = x:contiguous() -- swap the axes for faster indexing
+  -- y = y:transpose(1,2):contiguous()
+  y = y:contiguous()
   
   if opt.gpuid >= 0 and opt.opencl == 0 then -- ship the input arrays to GPU
     -- have to convert to float because integers can't be cuda()'d
@@ -233,7 +235,7 @@ function eval_split(split_index, max_batches)
   local n = loader.split_sizes[split_index]
   if max_batches ~= nil then n = math.min(max_batches, n) end
 
-  loader:reset_batch_pointer(split_index) -- move batch iteration pointer for this split to front
+  loader:resetBatchPointer(split_index) -- move batch iteration pointer for this split to front
   local loss = 0
   local rnn_state = {[0] = init_state}
   

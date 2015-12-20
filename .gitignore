@@ -1,6 +1,9 @@
 # Ignore the data folder:
 data/
 
+# Ignore the cv folder:
+cv/
+
 # Ignore the inputs folder:
 inputs/
 

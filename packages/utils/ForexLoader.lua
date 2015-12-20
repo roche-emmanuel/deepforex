@@ -165,8 +165,8 @@ function Class:prepareBatches(features,labels)
 
   local offset = 0
   for i=1,nbatches do
-    local xbatch = {}
-    local ybatch = {}
+    local xbatch = torch.Tensor(seq_len,bsize,nf)
+    local ybatch = torch.Tensor(seq_len,bsize,nout)
 
     for t=1,seq_len do
       -- build a tensor corresponding to the sequence element t
@@ -181,8 +181,8 @@ function Class:prepareBatches(features,labels)
         ymat[{i,{}}] = labels[{offset+(i-1)*seq_len+t,outid}]
       end
 
-      table.insert(xbatch,xmat)
-      table.insert(ybatch,ymat)
+      xbatch[t] = xmat
+      ybatch[t] = ymat
     end
 
     table.insert(self.x_batches,xbatch)
@@ -228,7 +228,7 @@ function Class:nextBatch(split_index)
   if split_index == 3 then ix = ix + self.ntrain + self.nval end -- offset by train + val
   
   return self.x_batches[ix], self.y_batches[ix]
-  
+
   -- local istart = (ix-1)*self.batch_size+1
   -- local iend = istart+self.batch_size-1
   -- local fea = self._features[{{istart,iend},{}}]

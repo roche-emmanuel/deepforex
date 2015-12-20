@@ -8,12 +8,14 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL,
 {
   if(is.null(isyms)) {
     print("Using default input symbol list.")
-    isyms = c("EURUSD","AUDUSD")
+    isyms = c("EURUSD","AUDUSD","GBPUSD","NZDUSD","USDCAD","USDCHF","USDJPY")
+    #isyms = c("EURUSD","AUDUSD")
   }
   
   if(is.null(period)) {
     print("Using default period.")
-    period = "M5"
+    period = "M1"
+    #period = "M5"
   }
   
   if(is.null(fsyms)) {
@@ -28,7 +30,7 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL,
   
   if(is.null(cov.range)) {
     print("Using coverage on 2004")
-    cov.range <- c("2004-01-01","2005-01-01")
+    cov.range <- c("2004-01-01","2004-07-01")
   }
   
   # first generate the raw dataset:
