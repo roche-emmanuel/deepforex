@@ -39,7 +39,15 @@ require 'lfs'
 -- We use float tensors in this project:
 torch.setdefaulttensortype('torch.FloatTensor')
 
+require 'utils.misc'
+
+local model_utils = require 'utils.model_utils'
 local ForexLoader = require "utils.ForexLoader"
+
+local LSTM = require 'model.LSTM'
+local GRU = require 'model.GRU'
+local RNN = require 'model.RNN'
+
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -127,5 +135,19 @@ opt.split_fractions = {opt.train_frac, opt.val_frac, test_frac}
 
 -- prepare the loader:
 local loader = ForexLoader(opt)
+
+-- Create the model:
+-- print('creating an ' .. opt.model .. ' with ' .. opt.num_layers .. ' layers')
+-- local protos = {}
+-- if opt.model == 'lstm' then
+--     protos.rnn = LSTM.lstm(vocab_size, opt.rnn_size, opt.num_layers, opt.dropout)
+-- elseif opt.model == 'gru' then
+--     protos.rnn = GRU.gru(vocab_size, opt.rnn_size, opt.num_layers, opt.dropout)
+-- elseif opt.model == 'rnn' then
+--     protos.rnn = RNN.rnn(vocab_size, opt.rnn_size, opt.num_layers, opt.dropout)
+-- end
+-- -- protos.criterion = nn.ClassNLLCriterion()
+-- protos.criterion = nn.MSECriterion()
+
 
 print("Training done.")

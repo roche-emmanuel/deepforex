@@ -57,29 +57,42 @@ function Class:initialize(options)
   local features = torch.load(self.features_file)
   local labels = torch.load(self.labels_file)
 
+  local bsize = self.batch_size
+  local seq_len = self.seq_length
+
+  -- cut off the end so that it divides evenly
+  local len = features:size(1)
+  CHECK(len== labels:size(1),"Mismatch in features and labels sizes")
+  
+  if len % (bsize * seq_len) ~= 0 then
+    self:debug('Cutting off end of features so that the batches/sequences divide evenly')
+    local len = bsize * seq_len * math.floor(len / (bsize * seq_len))
+    features = features:sub(1, len)
+    labels = labels:sub(1, len)
+  end
+
+  self:debug("Features dimensions: ",features:size(1),"x",features:size(2))
+
+  self:prepareBatches(features,labels)
+
+
   -- Perform the processing of the features and labels to build the
   -- input sequences for the training:
-  self._features, self._labels = self:generateFeatures(features,labels)
+  -- self._features, self._labels = self:generateFeatures(features,labels)
 
   -- Cut off the end of the datasets to fit the requested batch size exactly:
-  local len = self._features:size(1)
-  CHECK(len==self._labels:size(1),"Mismatch in features and labels sizes")
+  -- local len = self._features:size(1)
+  -- CHECK(len==self._labels:size(1),"Mismatch in features and labels sizes")
 
-  local bsize = self.batch_size
 
-  if len % bsize ~= 0 then
-    self:debug('Cutting off end of data so that the batches divide evenly')
-    self._features = self._features:sub(1, bsize * math.floor(len / (bsize)))
-    self._labels = self._labels:sub(1, bsize * math.floor(len / (bsize)))
-  end
+  -- if len % bsize ~= 0 then
+  --   self:debug('Cutting off end of data so that the batches divide evenly')
+  --   self._features = self._features:sub(1, bsize * math.floor(len / (bsize)))
+  --   self._labels = self._labels:sub(1, bsize * math.floor(len / (bsize)))
+  -- end
 
-  self:debug("Using final num samples: ", self._features:size(1))
-  self.nbatches = self._features:size(1)/bsize
-
-  -- lets try to be helpful here
-  if self.nbatches < 50 then
-      self:warn('less than 50 batches in the data in total? Looks like very small dataset. You probably want to use smaller batch_size and/or seq_length.')
-  end
+  -- self:debug("Using final num samples: ", self._features:size(1))
+  -- self.nbatches = self._features:size(1)/bsize
 
   -- Split the samples into train/eval/test:
   local split_fractions = self.split_fractions
@@ -104,6 +117,56 @@ function Class:initialize(options)
   self.batch_ix = {0,0,0}
 
   collectgarbage()
+end
+
+--[[
+Function: prepareBatches
+
+Method used to prepare the X/Y batches
+]]
+function Class:prepareBatches(features,labels)
+  local timer = torch.Timer()
+
+  -- for each sequence we use seq_len samples row from the features
+  -- in each batch we have batch_size sequences
+  self.x_batches = {}
+
+  local bsize = self.batch_size
+  local seq_len = self.seq_length
+  local nbatches = features:size(1)/(bsize*seq_len)
+
+  self.nbatches = nbatches
+  
+  -- lets try to be helpful here
+  if self.nbatches < 50 then
+      self:warn('less than 50 batches in the data in total? Looks like very small dataset. You probably want to use smaller batch_size and/or seq_length.')
+  end
+
+  self:debug("Preparing batches...")
+
+  local nf = features:size(2)
+
+  local offset = 0
+  for i=1,nbatches do
+    local batch = {}
+    for t=1,seq_len do
+      -- build a tensor corresponding to the sequence element t
+      -- eg. we present all the rows of features in batch that arrive
+      -- at time t in th sequence:
+      local mat = torch.Tensor(bsize,nf)
+
+      -- fill the data for this tensor:
+      for i=1,bsize do
+        mat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
+      end
+
+      table.insert(batch,mat)
+    end
+    table.insert(self.x_batches,batch)
+    offset = offset + bsize*seq_len
+  end
+
+  self:debug('Prepared batches in ', timer:time().real ,' seconds')  
 end
 
 --[[
