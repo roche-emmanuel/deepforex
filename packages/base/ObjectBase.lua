@@ -22,10 +22,10 @@
 local oo = require "loop.cached"
 
 local Object = oo.class{}
+Object._TRACE_ = "ObjectBase"
 
 function Object:__init()
 	local obj = oo.rawnew(self,{})
-	obj._TRACE_ = "ObjectBase"
 	return obj
 end
 

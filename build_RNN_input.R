@@ -231,6 +231,7 @@ rnnWriteDataset <- function(data,folder)
   
   cfgfile <- paste0(path,"/","dataset.lua") 
   cat("return {", file=cfgfile, sep="\n")
+  cat(paste0("\tseq_length = ",data$seq_length,","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_samples = ",len,","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_inputs = ",(dim(data$inputs)[2]-1),","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_forcasts = ",(dim(data$forcasts)[2]),","), file=cfgfile, sep="\n", append=T)
@@ -239,4 +240,47 @@ rnnWriteDataset <- function(data,folder)
   cat(paste0("\tfmeans = { ",paste(data$fmeans,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tfdevs = { ",paste(data$fdevs,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
   cat("}", file=cfgfile, sep="\n", append=T)
+}
+
+# Method used to generate the features dataset:
+rnnGenFeatures <- function(data,seq_len = 50)
+{
+  print(paste("Generating feature dataset with sequence length:",seq_len))
+  
+  # First we should prepare the final matrix:
+  dims <- dim(data$inputs)
+  
+  # number of rows should be the same as the inputs, except that we remove the first (seq_len-1) rows:
+  nrows <- dims[1] - (seq_len-1)
+  
+  # number of cols should be 2 + seq_len * num_symbols * 4:
+  stride <- length(data$symbols) * 4
+  ncols <- 2 + seq_len * stride
+  
+  # Prepare the matrix:
+  features <- matrix(nrow = nrows, ncol = ncols)
+  
+  # first we copy the weektime, daytime:
+  features[,c(1,2)] <- as.matrix(data$inputs[-(1:49),c("weektime","daytime"),with=F])
+  
+  # prepare the actual feature data as a matrix:
+  fdat <- as.matrix(data$inputs[,-c("date","weektime","daytime"),with=F])
+  
+  # now we iterate on each sequence index to inject the fdat into the desired sub matrix of features:
+  # start with the third column:
+  offset <- 3
+  
+  for(i in 1:seq_len)
+  {
+    print(paste0("Processing sequence index ",i,"..."))
+    features[,offset:(offset+stride-1)] <- fdat[i:(i+nrows-1),]
+    offset <- offset+stride
+  }
+  
+  # Now store the global features matrix into the data:
+  data$features <- features
+  data$seq_length <- seq_len
+  
+  # return the data:
+  data
 }

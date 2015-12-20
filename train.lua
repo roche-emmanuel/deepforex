@@ -36,6 +36,9 @@ require 'nngraph'
 require 'optim'
 require 'lfs'
 
+-- We use float tensors in this project:
+torch.setdefaulttensortype('torch.FloatTensor')
+
 local ForexLoader = require "utils.ForexLoader"
 
 cmd = torch.CmdLine()
@@ -79,10 +82,6 @@ cmd:text()
 opt = cmd:parse(arg)
 torch.manualSeed(opt.seed)
 
--- train / val / test split for data, in fractions
-local test_frac = math.max(0, 1 - (opt.train_frac + opt.val_frac))
-local split_sizes = {opt.train_frac, opt.val_frac, test_frac} 
-
 -- initialize cunn/cutorch for training on the GPU and fall back to CPU gracefully
 if opt.gpuid >= 0 and opt.opencl == 0 then
   local ok, cunn = pcall(require, 'cunn')
@@ -122,7 +121,11 @@ end
 -- make sure output directory exists
 if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
 
+-- train / val / test split for data, in fractions
+local test_frac = math.max(0, 1 - (opt.train_frac + opt.val_frac))
+opt.split_fractions = {opt.train_frac, opt.val_frac, test_frac} 
+
 -- prepare the loader:
-local loader = ForexLoader.create(opt.data_dir, opt.batch_size, opt.seq_length, split_sizes)
+local loader = ForexLoader(opt)
 
 print("Training done.")
