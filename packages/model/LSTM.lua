@@ -1,6 +1,6 @@
 
 local LSTM = {}
-function LSTM.lstm(input_size, rnn_size, n, dropout)
+function LSTM.lstm(input_size, output_size, rnn_size, n, dropout)
   dropout = dropout or 0 
 
   -- there will be 2*n+1 inputs
@@ -56,15 +56,17 @@ function LSTM.lstm(input_size, rnn_size, n, dropout)
   local top_h = outputs[#outputs]
   if dropout > 0 then top_h = nn.Dropout(dropout)(top_h) end
   
-  -- after the dropout, we need to compute a linear single value,
-  -- and apply a tanh on it to get value in the range (-1,1)
-  local proj = nn.Linear(rnn_size, 1)(top_h):annotate{name='decoder'}
-  local final = nn.Tanh()(proj)
-  table.insert(outputs, final)
-
-  -- local proj = nn.Linear(rnn_size, input_size)(top_h):annotate{name='decoder'}
-  -- local logsoft = nn.LogSoftMax()(proj)
-  -- table.insert(outputs, logsoft)
+  local proj = nn.Linear(rnn_size, output_size)(top_h):annotate{name='decoder'}
+  
+  if output_size == 1 then
+    -- after the dropout, we need to compute a linear single value,
+    -- and apply a tanh on it to get value in the range (-1,1)
+    local final = nn.Tanh()(proj)
+    table.insert(outputs, final)
+  else
+    local logsoft = nn.LogSoftMax()(proj)
+    table.insert(outputs, logsoft)
+  end
 
   return nn.gModule(inputs, outputs)
 end

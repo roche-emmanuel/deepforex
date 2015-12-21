@@ -89,8 +89,18 @@ Function: getInputSize
 Retrieve the input size for this dataset features:
 ]]
 function Class:getInputSize()
-  return self.nfeatures
+  self:no_impl()
 end
+
+--[[
+Function: getOutputSize
+
+return the output size for the RNN
+]]
+function Class:getOutputSize()
+  self:no_impl()
+end
+
 
 --[[
 Function: resetBatchPointer

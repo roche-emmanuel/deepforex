@@ -83,6 +83,15 @@ function Class:getInputSize()
 end
 
 --[[
+Function: getOutputSize
+
+return the output size for the RNN
+]]
+function Class:getOutputSize()
+  return 1
+end
+
+--[[
 Function: prepareBatches
 
 Method used to prepare the X/Y batches

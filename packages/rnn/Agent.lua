@@ -54,10 +54,12 @@ function Class:createPrototype()
 
 	local ni = self._provider:getInputSize()
 	self:debug("Number of inputs: ".. ni)
+	local no = self._provider:getOutputSize()
+	self:debug("Number of outputs: ".. no)
 
 	local protos = {}
 	if opt.model == 'lstm' then
-	  protos.rnn = LSTM.lstm(ni, opt.rnn_size, opt.num_layers, opt.dropout)
+	  protos.rnn = LSTM.lstm(ni, no, opt.rnn_size, opt.num_layers, opt.dropout)
 	elseif opt.model == 'gru' then
 	  protos.rnn = GRU.gru(ni, opt.rnn_size, opt.num_layers, opt.dropout)
 	elseif opt.model == 'rnn' then
