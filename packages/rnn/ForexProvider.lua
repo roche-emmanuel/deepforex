@@ -55,7 +55,8 @@ function Class:setup(options)
   local bsize = self.batch_size
   local seq_len = self.seq_length
 
-  self.nfeatures = features:size(2)
+  self._inputSize = features:size(2)
+  self._outputSize = 1
 
   -- cut off the end so that it divides evenly
   local len = features:size(1)
@@ -70,89 +71,11 @@ function Class:setup(options)
 
   self:debug("Features dimensions: ",features:size(1),"x",features:size(2))
 
+  -- select only the first column for the labels:
+  -- labels = labels[{{},1}]
+  labels = labels:narrow(2,1,1)
+
   self:prepareBatches(features,labels)  
-end
-
---[[
-Function: getInputSize
-
-Retrieve the input size for this dataset features:
-]]
-function Class:getInputSize()
-  return self.nfeatures
-end
-
---[[
-Function: getOutputSize
-
-return the output size for the RNN
-]]
-function Class:getOutputSize()
-  return 1
-end
-
---[[
-Function: prepareBatches
-
-Method used to prepare the X/Y batches
-]]
-function Class:prepareBatches(features,labels)
-  local timer = torch.Timer()
-
-  -- for each sequence we use seq_len samples row from the features
-  -- in each batch we have batch_size sequences
-  self.x_batches = {}
-  self.y_batches = {}
-
-  local bsize = self.batch_size
-  local seq_len = self.seq_length
-  local nbatches = features:size(1)/(bsize*seq_len)
-
-  self.nbatches = nbatches
-  
-  -- lets try to be helpful here
-  if self.nbatches < 50 then
-      self:warn('less than 50 batches in the data in total? Looks like very small dataset. You probably want to use smaller batch_size and/or seq_length.')
-  end
-
-  self:debug("Preparing batches...")
-
-  local nf = features:size(2)
-  -- we keep only one forcast per network:
-  local nout = 1
-
-  -- Select the forcast index we want to keep:
-  local outid = 1 
-
-  local offset = 0
-  for i=1,nbatches do
-    local xbatch = torch.Tensor(seq_len,bsize,nf)
-    local ybatch = torch.Tensor(seq_len,bsize,nout)
-
-    for t=1,seq_len do
-      -- build a tensor corresponding to the sequence element t
-      -- eg. we present all the rows of features in batch that arrive
-      -- at time t in th sequence:
-      local xmat = torch.Tensor(bsize,nf)
-      local ymat = torch.Tensor(bsize,nout)
-
-      -- fill the data for this tensor:
-      for i=1,bsize do
-        xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
-        ymat[{i,{}}] = labels[{offset+(i-1)*seq_len+t,outid}]
-      end
-
-      xbatch[t] = xmat
-      ybatch[t] = ymat
-    end
-
-    table.insert(self.x_batches,xbatch)
-    table.insert(self.y_batches,ybatch)
-    
-    offset = offset + bsize*seq_len
-  end
-
-  self:debug('Prepared batches in ', timer:time().real ,' seconds')  
 end
 
 --[[
@@ -203,54 +126,6 @@ function Class:preprocessDataset()
   torch.save(self.labels_file, data)
 
   self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
-end
-
---[[
-Function: generateFeatures
-
-Method used to turn the raw features inputs into sequences appropriated
-for RNN input
-]]
-function Class:generateFeatures(features,labels)
-  local timer = torch.Timer()
-
-  local seq_len = self.seq_length
-  self:debug("Generating features for sequence length of ",seq_len)
-
-  -- First we prepare the final feature tensor:
-  -- this tensor should contain the weektime, the daytime, and then the sequence
-  -- of prices:
-  -- Thus the total number of columns is given by:
-  local stride = (features:size(2) - 2)
-  local ncols = 2 + seq_len * stride
-
-  -- The number of rows should be the same as the raw feature minus (seq_len-1)
-  local nrows = features:size(1) - (seq_len-1)
-
-  -- create the tensor:
-  self:debug("Creating tensor of size ",nrows,"x",ncols)
-  local data = torch.Tensor(nrows, ncols)
-
-  -- First we can assign the weektime/daytime data, taken directly from the features tensor:
-  data[{{},{1,2}}] = features[{{seq_len,-1},{1,2}}]
-
-  -- Now fill the tensor with the additional sequence data:
-  local offset = 3
-  for i=1,seq_len do
-    data[{{},{offset,offset+stride-1}}] = features[{{i,i+nrows-1},{3,3+stride-1}}]
-    offset = offset + stride
-  end
-
-  -- print(data[{{1,10},{}}])
-  -- torch.save("inputs/test_data.txt",data,"ascii")
-
-  -- Also process the label data:
-  -- we simply need to remove the first (seq_len-1) rows
-  labels = labels:sub(seq_len,-1)
-
-  self:debug('Feature generation completed in ' .. timer:time().real .. ' seconds')
-
-  return data, labels
 end
 
 return Class

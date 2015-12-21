@@ -34,6 +34,9 @@ function Class:initialize(options)
   CHECK(options.split_fractions,"Invalid split fractions")
   self.split_fractions = options.split_fractions
 
+  self._inputSize = nil
+  self._outputSize = nil
+
   self:setup(options)
 
   self:setSplitSizes()
@@ -89,7 +92,7 @@ Function: getInputSize
 Retrieve the input size for this dataset features:
 ]]
 function Class:getInputSize()
-  self:no_impl()
+  return self._inputSize
 end
 
 --[[
@@ -98,7 +101,7 @@ Function: getOutputSize
 return the output size for the RNN
 ]]
 function Class:getOutputSize()
-  self:no_impl()
+  return self._outputSize
 end
 
 
@@ -182,6 +185,66 @@ function Class:readCSV(filename, nrows, ncols)
   csvFile:close()
 
   return data
+end
+
+--[[
+Function: prepareBatches
+
+Method used to prepare the X/Y batches
+]]
+function Class:prepareBatches(features,labels)
+  local timer = torch.Timer()
+
+  -- for each sequence we use seq_len samples row from the features
+  -- in each batch we have batch_size sequences
+  self.x_batches = {}
+  self.y_batches = {}
+
+  local bsize = self.batch_size
+  local seq_len = self.seq_length
+  local nbatches = features:size(1)/(bsize*seq_len)
+
+  self.nbatches = nbatches
+  
+  -- lets try to be helpful here
+  if self.nbatches < 50 then
+      self:warn('less than 50 batches in the data in total? Looks like very small dataset. You probably want to use smaller batch_size and/or seq_length.')
+  end
+
+  self:debug("Preparing batches...")
+
+  local nf = features:size(2)
+  local nout = labels:size(2)
+
+  local offset = 0
+  for i=1,nbatches do
+    local xbatch = torch.Tensor(seq_len,bsize,nf)
+    local ybatch = torch.Tensor(seq_len,bsize,nout)
+
+    for t=1,seq_len do
+      -- build a tensor corresponding to the sequence element t
+      -- eg. we present all the rows of features in batch that arrive
+      -- at time t in th sequence:
+      local xmat = torch.Tensor(bsize,nf)
+      local ymat = torch.Tensor(bsize,nout)
+
+      -- fill the data for this tensor:
+      for i=1,bsize do
+        xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
+        ymat[{i,{}}] = labels[{offset+(i-1)*seq_len+t,{}}]
+      end
+
+      xbatch[t] = xmat
+      ybatch[t] = ymat
+    end
+
+    table.insert(self.x_batches,xbatch)
+    table.insert(self.y_batches,ybatch)
+    
+    offset = offset + bsize*seq_len
+  end
+
+  self:debug('Prepared batches in ', timer:time().real ,' seconds')  
 end
 
 return Class
