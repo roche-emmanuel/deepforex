@@ -57,17 +57,17 @@ cmd:text('Options')
 -- data
 cmd:option('-data_dir','inputs/2004_01_to_2004_07','data directory. Should contain the input data for the training')
 -- model params
-cmd:option('-rnn_size', 128, 'size of LSTM internal state')
-cmd:option('-num_layers', 2, 'number of layers in the LSTM')
+cmd:option('-rnn_size', 512, 'size of LSTM internal state')
+cmd:option('-num_layers', 3, 'number of layers in the LSTM')
 cmd:option('-model', 'lstm', 'lstm, gru or rnn')
 -- optimization
-cmd:option('-learning_rate',2e-5,'learning rate')
+cmd:option('-learning_rate',2e-3,'learning rate')
 cmd:option('-learning_rate_decay',0.97,'learning rate decay')
 cmd:option('-learning_rate_decay_after',10,'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
 cmd:option('-dropout',0,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
-cmd:option('-seq_length',20,'number of timesteps to unroll for')
-cmd:option('-batch_size',40,'number of sequences to train on in parallel')
+cmd:option('-seq_length',64,'number of timesteps to unroll for')
+cmd:option('-batch_size',32,'number of sequences to train on in parallel')
 cmd:option('-max_epochs',50,'number of full passes through the training data')
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-train_frac',0.95,'fraction of data that goes into train set')
@@ -394,7 +394,7 @@ for i = 1, iterations do
   end
 
   if loss0 == nil then loss0 = loss[1] end
-  if loss[1] > loss0 * 3 then
+  if loss[1] > loss0 * 300 then
     print('loss is exploding, aborting.')
     break -- halt
   end

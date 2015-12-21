@@ -30,7 +30,7 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL,
   
   if(is.null(cov.range)) {
     print("Using coverage on 2004")
-    cov.range <- c("2004-01-01","2004-07-01")
+    cov.range <- c("2004-01-01","2005-01-01")
   }
   
   # first generate the raw dataset:
@@ -233,7 +233,6 @@ rnnWriteDataset <- function(data,folder)
   
   cfgfile <- paste0(path,"/","dataset.lua") 
   cat("return {", file=cfgfile, sep="\n")
-  cat(paste0("\tseq_length = ",data$seq_length,","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_samples = ",len,","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_inputs = ",(dim(data$inputs)[2]-1),","), file=cfgfile, sep="\n", append=T)
   cat(paste0("\tnum_forcasts = ",(dim(data$forcasts)[2]),","), file=cfgfile, sep="\n", append=T)
