@@ -1,5 +1,5 @@
 # This method will be used to plot the train/validation losses after a training of an RNN:
-plotLosses <- function(trainFile = "train_losses.csv", valFile = "val_losses.csv")
+plotLosses <- function(trainFile = "misc/train_losses.csv", valFile = "misc/val_losses.csv")
 {
   # Start with reading the datasets:
   traindata <- read.csv(trainFile, header = F)

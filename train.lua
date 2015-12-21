@@ -40,7 +40,7 @@ cmd:text('Train a FOREX trading agent')
 cmd:text()
 cmd:text('Options')
 -- data
-cmd:option('-data_dir','inputs/2004_01_to_2004_07','data directory. Should contain the input data for the training')
+cmd:option('-data_dir','inputs/2004_01_to_2007_01','data directory. Should contain the input data for the training')
 -- model params
 cmd:option('-rnn_size', 512, 'size of LSTM internal state')
 cmd:option('-num_layers', 3, 'number of layers in the LSTM')

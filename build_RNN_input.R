@@ -29,10 +29,11 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL,
   }
   
   if(is.null(cov.range)) {
-    print("Using coverage on 2004")
-    cov.range <- c("2004-01-01","2005-01-01")
+    cov.range <- c("2004-01-01","2007-01-01")
   }
   
+  print(paste("Using coverage from",cov.range[1],"to",cov.range[2]))
+        
   # first generate the raw dataset:
   print("Generating raw dataset...")
   data <- rnnGetRawDataset(isyms,period, cov.range)
