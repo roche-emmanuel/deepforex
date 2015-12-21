@@ -13,3 +13,6 @@ inputs/
 
 # Ignore the Rhistory file:
 .Rhistory
+
+# ignore the misc folder:
+misc/
