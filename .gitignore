@@ -1,6 +1,10 @@
 # Ignore the data folder:
 data/
 
+# ignore the train and val losses files:
+train_losses.csv
+val_losses.csv
+
 # Ignore the cv folder:
 cv/
 

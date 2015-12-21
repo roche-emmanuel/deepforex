@@ -379,6 +379,35 @@ function Class:train()
 	    break -- halt
 	  end
 	end
+
+	-- Write the train losses to file:
+	self:writeArray('train_losses.csv',train_losses)
+
+	-- write the eval losses to file:
+	-- first we need to fill the val_losses array:
+	local cval = 0.0
+	for i=1,#train_losses do
+		if not val_losses[i] then
+			val_losses[i] = cval
+		else
+			cval = val_losses[i]
+		end
+	end
+	self:writeArray('val_losses.csv',val_losses)
+
+end
+
+--[[
+Function: writeArray
+
+
+]]
+function Class:writeArray(filename,array)
+	local file = io.open(filename,"w")
+	for _,v in ipairs(array) do
+		file:write(v.."\n")
+	end
+	file:close()
 end
 
 return Class
