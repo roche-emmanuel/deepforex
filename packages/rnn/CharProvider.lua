@@ -1,4 +1,4 @@
-local Class = createClass{name="CharProvider",bases={"base.Object"}};
+local Class = createClass{name="CharProvider",bases={"rnn.ProviderBase"}};
 
 --[[
 Class: utils.CharProvider
@@ -35,10 +35,6 @@ Function: setup
 Re-implementation of setup method
 ]]
 function Class:setup(options)
-  -- Load the dataset config:
-  self.dcfg = dofile(path.join(self.data_dir, 'dataset.lua'))
-  -- self:debug("Loaded dataset config: ", self.dcfg)
-
   -- prepre the tensor files:
   self.input_file = path.join(self.data_dir, 'input.txt')
   self.vocab_file = path.join(self.data_dir, 'vocab.t7')
@@ -174,10 +170,10 @@ function Class:preprocessDataset()
     f:close()
 
     -- save output preprocessed files
-    self:debug('saving ' .. out_vocabfile)
-    torch.save(out_vocabfile, vocab_mapping)
-    self:debug('saving ' .. out_tensorfile)
-    torch.save(out_tensorfile, data)
+    self:debug('saving ' .. self.vocab_file)
+    torch.save(self.vocab_file, vocab_mapping)
+    self:debug('saving ' .. self.tensor_file)
+    torch.save(self.tensor_file, data)
 
   self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
 end

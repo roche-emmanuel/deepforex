@@ -32,7 +32,7 @@ config_file = "dforex_config"
 local man = require "rnn.Manager"
 local Agent = require "rnn.Agent"
 local ForexProvider = require "rnn.ForexProvider"
-
+local CharProvider = require "rnn.CharProvider"
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -40,10 +40,11 @@ cmd:text('Train a FOREX trading agent')
 cmd:text()
 cmd:text('Options')
 -- data
-cmd:option('-data_dir','inputs/2004_01_to_2007_01','data directory. Should contain the input data for the training')
+-- cmd:option('-data_dir','inputs/2004_01_to_2007_01','data directory. Should contain the input data for the training')
+cmd:option('-data_dir','inputs/tinyshakespeare','data directory. Should contain the input data for the training')
 -- model params
-cmd:option('-rnn_size', 512, 'size of LSTM internal state')
-cmd:option('-num_layers', 3, 'number of layers in the LSTM')
+cmd:option('-rnn_size', 128, 'size of LSTM internal state')
+cmd:option('-num_layers', 2, 'number of layers in the LSTM')
 cmd:option('-model', 'lstm', 'lstm, gru or rnn')
 -- optimization
 cmd:option('-learning_rate',2e-3,'learning rate')
@@ -85,7 +86,8 @@ man:setup(opt)
 if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
 
 -- Build the RNN agent:
-local agent = Agent{provider=ForexProvider(opt),config=opt}
+-- local agent = Agent{provider=ForexProvider(opt),config=opt}
+local agent = Agent{provider=CharProvider(opt),config=opt}
 
 -- train the agent:
 agent:train()
