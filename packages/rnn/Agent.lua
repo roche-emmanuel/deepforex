@@ -344,13 +344,13 @@ function Class:train()
 	  -- every now and then or on last iteration
 	  if i % opt.eval_val_every == 0 or i == iterations then
 	    -- evaluate loss on validation data
-	    local val_loss = eval_split(2) -- 2 = validation
+	    local val_loss = self:evaluateSplit(2) -- 2 = validation
 	    val_losses[i] = val_loss
 
 	    local savefile = string.format('%s/lm_%s_epoch%.2f_%.4f.t7', opt.checkpoint_dir, opt.savefile, epoch, val_loss)
 	    self:debug('Saving checkpoint to ' .. savefile)
 	    local checkpoint = {}
-	    checkpoint.protos = protos
+	    checkpoint.protos = self._prototype
 	    checkpoint.opt = opt
 	    checkpoint.train_losses = train_losses
 	    checkpoint.val_loss = val_loss
