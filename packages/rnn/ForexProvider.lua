@@ -1,7 +1,7 @@
-local Class = createClass{name="ForexHandler",bases={"base.Object"}};
+local Class = createClass{name="ForexProvider",bases={"base.Object"}};
 
 --[[
-Class: utils.ForexHandler
+Class: utils.ForexProvider
 
 Helper class used to create a Forex Loader
 
@@ -10,7 +10,7 @@ This class inherits from <base.Object>.
 
 --[=[
 --[[
-Constructor: ForexHandler
+Constructor: ForexProvider
 
 Create a new instance of the class.
 
@@ -19,7 +19,7 @@ Parameters:
   batch_size - Size of the mini batch to use
   split_fractions - repartition of the data between training/validation/test
 ]]
-function ForexHandler(options)
+function ForexProvider(options)
 ]=]
 function Class:initialize(options)
   self:debug("Creating a Forex Loader instance.")
