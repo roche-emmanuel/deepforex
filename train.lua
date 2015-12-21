@@ -30,19 +30,9 @@ end
 config_file = "dforex_config"
 
 
-require 'torch'
-require 'nn'
-require 'nngraph'
-require 'optim'
-require 'lfs'
-
--- We use float tensors in this project:
-torch.setdefaulttensortype('torch.FloatTensor')
-
-require 'utils.misc'
-
 local model_utils = require 'utils.model_utils'
 local ForexLoader = require "rnn.ForexHandler"
+local man = require "rnn.Manager"
 
 local LSTM = require 'model.LSTM'
 local GRU = require 'model.GRU'
@@ -88,43 +78,9 @@ cmd:text()
 
 -- parse input params
 opt = cmd:parse(arg)
-torch.manualSeed(opt.seed)
 
--- initialize cunn/cutorch for training on the GPU and fall back to CPU gracefully
-if opt.gpuid >= 0 and opt.opencl == 0 then
-  local ok, cunn = pcall(require, 'cunn')
-  local ok2, cutorch = pcall(require, 'cutorch')
-  if not ok then print('package cunn not found!') end
-  if not ok2 then print('package cutorch not found!') end
-  if ok and ok2 then
-    print('using CUDA on GPU ' .. opt.gpuid .. '...')
-    cutorch.setDevice(opt.gpuid + 1) -- note +1 to make it 0 indexed! sigh lua
-    cutorch.manualSeed(opt.seed)
-  else
-    print('If cutorch and cunn are installed, your CUDA toolkit may be improperly configured.')
-    print('Check your CUDA toolkit installation, rebuild cutorch and cunn, and try again.')
-    print('Falling back on CPU mode')
-    opt.gpuid = -1 -- overwrite user setting
-  end
-end
-
--- initialize clnn/cltorch for training on the GPU and fall back to CPU gracefully
-if opt.gpuid >= 0 and opt.opencl == 1 then
-  local ok, cunn = pcall(require, 'clnn')
-  local ok2, cutorch = pcall(require, 'cltorch')
-  if not ok then print('package clnn not found!') end
-  if not ok2 then print('package cltorch not found!') end
-  if ok and ok2 then
-    print('using OpenCL on GPU ' .. opt.gpuid .. '...')
-    cltorch.setDevice(opt.gpuid + 1) -- note +1 to make it 0 indexed! sigh lua
-    torch.manualSeed(opt.seed)
-  else
-    print('If cltorch and clnn are installed, your OpenCL driver may be improperly configured.')
-    print('Check your OpenCL driver installation, check output of clinfo command, and try again.')
-    print('Falling back on CPU mode')
-    opt.gpuid = -1 -- overwrite user setting
-  end
-end
+-- Setup the common elements:
+man:setup(opt)
 
 -- make sure output directory exists
 if not path.exists(opt.checkpoint_dir) then lfs.mkdir(opt.checkpoint_dir) end
