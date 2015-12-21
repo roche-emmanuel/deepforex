@@ -1,7 +1,7 @@
-local Class = createClass{name="ForexLoader",bases={"base.Object"}};
+local Class = createClass{name="ForexHandler",bases={"base.Object"}};
 
 --[[
-Class: utils.ForexLoader
+Class: utils.ForexHandler
 
 Helper class used to create a Forex Loader
 
@@ -10,7 +10,7 @@ This class inherits from <base.Object>.
 
 --[=[
 --[[
-Constructor: ForexLoader
+Constructor: ForexHandler
 
 Create a new instance of the class.
 
@@ -19,7 +19,7 @@ Parameters:
   batch_size - Size of the mini batch to use
   split_fractions - repartition of the data between training/validation/test
 ]]
-function ForexLoader(options)
+function ForexHandler(options)
 ]=]
 function Class:initialize(options)
   self:debug("Creating a Forex Loader instance.")
@@ -381,20 +381,20 @@ return Class
 -- Modified from https://github.com/oxford-cs-ml-2015/practical6
 -- the modification included support for train/val/test splits
 
--- local ForexLoader = {}
--- ForexLoader.__index = ForexLoader
+-- local ForexHandler = {}
+-- ForexHandler.__index = ForexHandler
 
--- function ForexLoader.create(data_dir, batch_size, seq_length, split_fractions)
+-- function ForexHandler.create(data_dir, batch_size, seq_length, split_fractions)
     -- split_fractions is e.g. {0.9, 0.05, 0.05}
 
     -- print("Loadind FOREX dataset...")
     -- local self = {}
-    -- setmetatable(self, ForexLoader)
+    -- setmetatable(self, ForexHandler)
 
     -- if run_prepro then
     --     -- construct a tensor with all the data, and vocab file
     --     print('one-time setup: preprocessing input text file ' .. inputs_file .. '...')
-    --     ForexLoader.text_to_tensor(inputs_file, vocab_file, tensor_file)
+    --     ForexHandler.text_to_tensor(inputs_file, vocab_file, tensor_file)
     -- end
 
     -- print('loading data files...')
@@ -457,12 +457,12 @@ return Class
 --     return self
 -- end
 
--- function ForexLoader:reset_batch_pointer(split_index, batch_index)
+-- function ForexHandler:reset_batch_pointer(split_index, batch_index)
 --     batch_index = batch_index or 0
 --     self.batch_ix[split_index] = batch_index
 -- end
 
--- function ForexLoader:next_batch(split_index)
+-- function ForexHandler:next_batch(split_index)
 --     if self.split_sizes[split_index] == 0 then
 --         -- perform a check here to make sure the user isn't screwing something up
 --         local split_names = {'train', 'val', 'test'}
@@ -482,7 +482,7 @@ return Class
 -- end
 
 -- -- *** STATIC method ***
--- function ForexLoader.text_to_tensor(in_textfile, out_vocabfile, out_tensorfile)
+-- function ForexHandler.text_to_tensor(in_textfile, out_vocabfile, out_tensorfile)
 --     local timer = torch.Timer()
 
 --     print('loading text file...')
@@ -535,5 +535,5 @@ return Class
 --     torch.save(out_tensorfile, data)
 -- end
 
--- return ForexLoader
+-- return ForexHandler
 

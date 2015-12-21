@@ -42,7 +42,7 @@ torch.setdefaulttensortype('torch.FloatTensor')
 require 'utils.misc'
 
 local model_utils = require 'utils.model_utils'
-local ForexLoader = require "utils.ForexLoader"
+local ForexLoader = require "rnn.ForexHandler"
 
 local LSTM = require 'model.LSTM'
 local GRU = require 'model.GRU'
