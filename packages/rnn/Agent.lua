@@ -65,9 +65,13 @@ function Class:createPrototype()
 	elseif opt.model == 'rnn' then
 	  protos.rnn = RNN.rnn(ni, opt.rnn_size, opt.num_layers, opt.dropout)
 	end
-	-- protos.criterion = nn.ClassNLLCriterion()
-	protos.criterion = nn.MSECriterion()	
 
+	if no == 1 then
+		protos.criterion = nn.MSECriterion()	
+	else
+		protos.criterion = nn.ClassNLLCriterion()
+	end
+	
 	-- ship the model to the GPU if desired
 	if opt.gpuid >= 0 and opt.opencl == 0 then
 	  for k,v in pairs(protos) do 
