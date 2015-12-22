@@ -81,7 +81,7 @@ function Class:setSplitSizes()
   self.split_sizes = {self.ntrain, self.nval, self.ntest}
   self.batch_ix = {0,0,0}
 
-  print(string.format('data load done. Number of data batches in train: %d, val: %d, test: %d', self.ntrain, self.nval, self.ntest))
+  self:debug(string.format('data load done. Number of data batches in train: %d, val: %d, test: %d', self.ntrain, self.nval, self.ntest))
 
   collectgarbage() 
 end
