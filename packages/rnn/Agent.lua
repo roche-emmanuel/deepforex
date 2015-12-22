@@ -257,7 +257,7 @@ function Class:trainEval(x)
     self._clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
     local lst = self._clones.rnn[t]:forward{x[t], unpack(rnn_state[t-1])}
 
-    print("x[".. t.."]:", x[t])
+    -- print("x[".. t.."]:", x[t])
     -- line below will always return #lst=5 (with 2 layers)
     -- and  #lst=7 with 3 layers 
     -- This correspond to the description of the LSTM model (2 outputs per layers + final output)
@@ -274,7 +274,7 @@ function Class:trainEval(x)
     -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
 
     loss = loss + self._clones.criterion[t]:forward(predictions[t], y[t])
-    self:debug("New loss value: ",loss)
+    -- self:debug("New loss value: ",loss)
   end
   loss = loss / opt.seq_length
   

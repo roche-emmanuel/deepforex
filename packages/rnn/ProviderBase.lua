@@ -217,6 +217,8 @@ function Class:prepareBatches(features,labels)
 
   local nf = features:size(2)
 
+  local stride = features:size(1)/bsize
+
   local offset = 0
   for i=1,nbatches do
     local xbatch = torch.Tensor(seq_len,bsize,nf)
@@ -231,8 +233,10 @@ function Class:prepareBatches(features,labels)
 
       -- fill the data for this tensor:
       for i=1,bsize do
-        xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
-        ymat[i] = labels[offset+(i-1)*seq_len+t]
+        -- xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
+        -- ymat[i] = labels[offset+(i-1)*seq_len+t]
+        xmat[{i,{}}] = features[{offset+(i-1)*stride+t,{}}]
+        ymat[i] = labels[offset+(i-1)*stride+t]
       end
 
       xbatch[t] = xmat
@@ -242,7 +246,8 @@ function Class:prepareBatches(features,labels)
     table.insert(self.x_batches,xbatch)
     table.insert(self.y_batches,ybatch)
     
-    offset = offset + bsize*seq_len
+    -- offset = offset + bsize*seq_len
+    offset = offset + seq_len
   end
 
   self:debug('Prepared batches in ', timer:time().real ,' seconds')

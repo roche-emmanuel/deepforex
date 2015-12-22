@@ -82,8 +82,14 @@ function Class:setup(options)
   -- local labels = torch.Tensor(nrows,self.vocab_size):zero()
   -- we do not perform the transformation on the ydata because the NLLcreterion
   -- expect the class index as target:
+  -- print("Data: ", data:narrow(1,1,100))
+
+  -- We have to re-order the sequences to get the same batch sequences as in the reference
+  -- implementation:
+  -- local x_batches = data:view(bsize,-1):split(seq_len,2)
+  -- local y_batches = ydata:view()  
+  
   local labels = ydata
-  print("Data: ", data:narrow(1,1,100))
 
   for i=1,nrows do
     features[{i,data[i]}] = 1
