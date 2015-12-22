@@ -79,11 +79,15 @@ function Class:setup(options)
   local nrows = data:size(1)
 
   local features = torch.Tensor(nrows,self.vocab_size):zero()
-  local labels = torch.Tensor(nrows,self.vocab_size):zero()
+  -- local labels = torch.Tensor(nrows,self.vocab_size):zero()
+  -- we do not perform the transformation on the ydata because the NLLcreterion
+  -- expect the class index as target:
+  local labels = ydata
+  print("Data: ", data:narrow(1,1,100))
 
   for i=1,nrows do
     features[{i,data[i]}] = 1
-    labels[{i,ydata[i]}] = 1
+    -- labels[{i,ydata[i]}] = 1
   end
 
   self:prepareBatches(features,labels)  

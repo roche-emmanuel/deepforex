@@ -101,7 +101,7 @@ function Class:createInitState()
 	local opt = self._config
 
 	-- the initial state of the cell/hidden states
-	init_state = {}
+	local init_state = {}
 	for L=1,opt.num_layers do
 	  local h_init = torch.zeros(opt.batch_size, opt.rnn_size)
 	  if opt.gpuid >=0 and opt.opencl == 0 then h_init = h_init:cuda() end
@@ -257,6 +257,7 @@ function Class:trainEval(x)
     self._clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
     local lst = self._clones.rnn[t]:forward{x[t], unpack(rnn_state[t-1])}
 
+    print("x[".. t.."]:", x[t])
     -- line below will always return #lst=5 (with 2 layers)
     -- and  #lst=7 with 3 layers 
     -- This correspond to the description of the LSTM model (2 outputs per layers + final output)
@@ -266,16 +267,20 @@ function Class:trainEval(x)
     -- print("Size of init_state: ".. #init_state)
 
     rnn_state[t] = {}
-    for i=1,#init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
+    for i=1,#self._initState do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
 
     predictions[t] = lst[#lst] -- last element is the prediction
+    -- self:debug("predictions[",t,"] dims= ",predictions[t]:nDimension(),": ",predictions[t]:size(1),"x",predictions[t]:size(2))
+    -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
+
     loss = loss + self._clones.criterion[t]:forward(predictions[t], y[t])
+    self:debug("New loss value: ",loss)
   end
   loss = loss / opt.seq_length
   
   ------------------ backward pass -------------------
   -- initialize gradient at time t to be zeros (there's no influence from future)
-  local drnn_state = {[opt.seq_length] = clone_list(init_state, true)} -- true also zeros the self._clones
+  local drnn_state = {[opt.seq_length] = clone_list(self._initState, true)} -- true also zeros the self._clones
   for t=opt.seq_length,1,-1 do
     -- backprop through loss, and softmax/linear
     local doutput_t = self._clones.criterion[t]:backward(predictions[t], y[t])

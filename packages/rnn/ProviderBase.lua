@@ -193,6 +193,8 @@ Function: prepareBatches
 Method used to prepare the X/Y batches
 ]]
 function Class:prepareBatches(features,labels)
+  self:debug("Calling prepare batches !")
+
   local timer = torch.Timer()
 
   -- for each sequence we use seq_len samples row from the features
@@ -214,24 +216,23 @@ function Class:prepareBatches(features,labels)
   self:debug("Preparing batches...")
 
   local nf = features:size(2)
-  local nout = labels:size(2)
 
   local offset = 0
   for i=1,nbatches do
     local xbatch = torch.Tensor(seq_len,bsize,nf)
-    local ybatch = torch.Tensor(seq_len,bsize,nout)
+    local ybatch = torch.Tensor(seq_len,bsize)
 
     for t=1,seq_len do
       -- build a tensor corresponding to the sequence element t
       -- eg. we present all the rows of features in batch that arrive
       -- at time t in th sequence:
       local xmat = torch.Tensor(bsize,nf)
-      local ymat = torch.Tensor(bsize,nout)
+      local ymat = torch.Tensor(bsize)
 
       -- fill the data for this tensor:
       for i=1,bsize do
         xmat[{i,{}}] = features[{offset+(i-1)*seq_len+t,{}}]
-        ymat[{i,{}}] = labels[{offset+(i-1)*seq_len+t,{}}]
+        ymat[i] = labels[offset+(i-1)*seq_len+t]
       end
 
       xbatch[t] = xmat
@@ -244,7 +245,7 @@ function Class:prepareBatches(features,labels)
     offset = offset + bsize*seq_len
   end
 
-  self:debug('Prepared batches in ', timer:time().real ,' seconds')  
+  self:debug('Prepared batches in ', timer:time().real ,' seconds')
 end
 
 return Class
