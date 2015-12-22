@@ -368,7 +368,7 @@ function Class:train()
 	    checkpoint.val_losses = val_losses
 	    checkpoint.i = i
 	    checkpoint.epoch = epoch
-	    -- checkpoint.vocab = prov.vocab_mapping
+	    self._provider:addCheckpointData(checkpoint)
 	    torch.save(savefile, checkpoint)
 	  end
 

@@ -148,6 +148,15 @@ function Class:nextBatch(split_index)
 end
 
 --[[
+Function: addCheckpointData
+
+Add data to checkpoint before saving it
+]]
+function Class:addCheckpointData(checkpoint)
+  -- no op.
+end
+
+--[[
 Function: isUpdateRequired
 
 Helper method used to check if a given file used as source

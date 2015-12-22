@@ -100,6 +100,15 @@ function Class:setup(options)
 end
 
 --[[
+Function: addCheckpointData
+
+Add data to checkpoint before saving it
+]]
+function Class:addCheckpointData(checkpoint)
+  checkpoint.vocab = self.vocab_mapping
+end
+
+--[[
 Function: isPreprocessingRequired
 
 Method used to check if preprocessing is required
