@@ -89,12 +89,12 @@ function Class:sample()
 
   -- compute the overall error:
   local correct = torch.sum(torch.eq(labels,preds))/len
-  self:debug("Overall error: ", 1.0 - correct)
+  self:debug("Overall correctness: ", correct)
 
   -- Also compute the efficiency of the predictions:
   -- eg. how often we have the "proper direction" for the prediction:
   -- We need to know how many classes we have:
-  local nclasses = self._checkpoint.config.num_classes
+  local nclasses = self._rcfg.numClasses
   self:debug("Number of classes used: ", nclasses)
   CHECK(nclasses%2==0,"Not even number of classes...")
   local half = nclasses/2
