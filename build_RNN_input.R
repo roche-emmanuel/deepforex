@@ -36,11 +36,12 @@ rnnGenerateInputDataset <- function(isyms = NULL, period = NULL, fsyms = NULL,
         
   # first generate the raw dataset:
   print("Generating raw dataset...")
-  data <- rnnGetRawDataset(isyms,period, cov.range)
+  data <- rnnGetRawDataset(isyms,period,cov.range)
   print("Computing forcasts...")
   data <- rnnComputeForcast(data,fsyms,offsets)
   print("Normalizing dataset...")
-  data <- rnnNormalizeDataset(data, norms)
+  data <- rnnNormalizeInputs(data, norms)
+  data <- rnnNormalizeForcasts(data, norms)
 }
 
 # retrieve the raw data:
@@ -104,32 +105,8 @@ rnnComputeForcast <- function(data,symbols,offsets)
   data
 }
 
-rnnNormalizeDataset <- function(data, norms = NULL)
+rnnNormalizeInputs <- function(data, norms = NULL)
 {
-  # Compute the means and std devs:
-  # data$fmeans <- colMeans(forcasts)
-  # data$fdev <- apply(forcast,2,sd)
-  
-  # Normalize the forcast data:
-  if(!is.null(norms)) 
-  {
-    print("Normalizing forcast data with refs...")
-    data$forcasts <- as.data.table(scale(data$forcasts,center=norms$fmeans, scale=norms$fdevs))
-    data$fmeans <- norms$fmeans
-    data$fdevs <- norms$fdevs
-  }
-  else 
-  {
-    print("Computing forcast data normalization...")
-    scaled <- scale(data$forcasts)
-    data$forcasts <- as.data.table(scaled)
-    data$fmeans <- attributes(scaled)[["scaled:center"]]
-    data$fdevs <- attributes(scaled)[["scaled:scale"]]
-  }
-  
-  # Additionally we take the tanh of the forcast to get in the range (-1,1)
-  data$forcasts <- tanh(data$forcasts)
-  
   # Now we also need to rescale the inputs:
   # We should use all the available input symbols:
   allsymbols <- data$symbols
@@ -185,6 +162,35 @@ rnnNormalizeDataset <- function(data, norms = NULL)
   data$inputs <- cbind(data$inputs[,"date",with=F],weektime,daytime,prices)
   
   # return the dataset:
+  data  
+}
+
+rnnNormalizeForcasts <- function(data, norms = NULL)
+{
+  # Compute the means and std devs:
+  # data$fmeans <- colMeans(forcasts)
+  # data$fdev <- apply(forcast,2,sd)
+  
+  # Normalize the forcast data:
+  if(!is.null(norms)) 
+  {
+    print("Normalizing forcast data with refs...")
+    data$forcasts <- as.data.table(scale(data$forcasts,center=norms$fmeans, scale=norms$fdevs))
+    data$fmeans <- norms$fmeans
+    data$fdevs <- norms$fdevs
+  }
+  else 
+  {
+    print("Computing forcast data normalization...")
+    scaled <- scale(data$forcasts)
+    data$forcasts <- as.data.table(scaled)
+    data$fmeans <- attributes(scaled)[["scaled:center"]]
+    data$fdevs <- attributes(scaled)[["scaled:scale"]]
+  }
+  
+  # Additionally we take the tanh of the forcast to get in the range (-1,1)
+  data$forcasts <- tanh(data$forcasts)
+  
   data
 }
 
@@ -284,5 +290,71 @@ rnnGenFeatures <- function(data,seq_len = 50)
   data$seq_length <- seq_len
   
   # return the data:
+  data
+}
+
+
+# Simple method to write the raw inputs to a raw dataset file:
+rnnWriteRawInputs <- function(isyms = NULL, period = NULL, cov.range = NULL, 
+                              out.dir = "raw_2004_01_to_2007_01", norms = NULL)
+{
+  path <- paste0("inputs/",out.dir)
+  
+  # create the target folder:
+  if(!dir.exists(path))
+  {
+    print(paste("Creating folder",path))
+    dir.create(path,recursive = T)
+  }
+  else
+  {
+    # The folder already exist, we should clean it:
+    print(paste("Cleaning folder",path))
+    rmfile <- function(fname)
+    {
+      file.remove(paste0(path,"/",fname))
+    }
+    do.call(rmfile,list(list.files(path)))
+  }
+  
+  if(is.null(isyms)) {
+    print("Using default input symbol list.")
+    isyms = c("EURUSD","AUDUSD","GBPUSD","NZDUSD","USDCAD","USDCHF","USDJPY")
+    #isyms = c("EURUSD","AUDUSD")
+  }
+  
+  if(is.null(period)) {
+    period = "M1"
+    #period = "M5"
+  }
+  print(paste("Using period:",period))
+  
+  if(is.null(cov.range)) {
+    cov.range <- c("2004-01-01","2007-01-01")
+  }
+  print(paste("Using coverage from",cov.range[1],"to",cov.range[2]))
+  
+  print("Reading raw inputs...")  
+  data <- rnnGetRawDataset(isyms,period,cov.range)
+  
+  #print("Normalizing inputs...")  
+  #data <- rnnNormalizeInputs(data, norms)
+  
+  print(paste("Writing outputs to folder",path))
+
+  # write the input dataset:
+  # Note that we do not write the dates in this file:
+  write.csv(data$inputs[,-c("date"),with=F],paste0(path,"/raw_inputs.csv"),row.names=F)
+  
+  len <- dim(data$inputs)[1]
+  
+  cfgfile <- paste0(path,"/","dataset.lua") 
+  cat("return {", file=cfgfile, sep="\n")
+  cat(paste0("\tnum_samples = ",len,","), file=cfgfile, sep="\n", append=T)
+  cat(paste0("\tnum_inputs = ",(dim(data$inputs)[2]-1),","), file=cfgfile, sep="\n", append=T)
+  #cat(paste0("\timeans = { ",paste(data$imeans,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  #cat(paste0("\tidevs = { ",paste(data$idevs,collapse = ", ")," },"), file=cfgfile, sep="\n", append=T)
+  cat("}", file=cfgfile, sep="\n", append=T)
+  
   data
 }

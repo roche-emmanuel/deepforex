@@ -1,4 +1,4 @@
-local Class = createClass{name="ForexDatasetHandler",bases={"base.Object"}};
+local Class = createClass{name="ForexDatasetHandler",bases={"rnn.FileReaderWriter"}};
 
 --[[
 Class: utils.ForexDatasetHandler
@@ -107,46 +107,6 @@ function Class:preprocessDataset()
   torch.save(self.labels_file, data)
 
   self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
-end
-
---[[
-Function: readCSV
-
-Helper method used to read a CSV file into a tensor
-]]
-function Class:readCSV(filename, nrows, ncols)
-  -- Read data from CSV to tensor
-  local csvFile = io.open(filename, 'r')  
-  local header = csvFile:read()
-
-  local data = torch.Tensor(nrows, ncols)
-
-  local i = 0  
-  for line in csvFile:lines('*l') do  
-    i = i + 1
-    local l = line:split(',')
-    for key, val in ipairs(l) do
-      data[i][key] = val
-    end
-  end
-
-  csvFile:close()
-
-  return data
-end
-
---[[
-Function: isUpdateRequired
-
-Helper method used to check if a given file used as source
-was updated (eg. modified) after a product file was generated
-from that source
-]]
-function Class:isUpdateRequired(src,prod)
-  local src_attr = lfs.attributes(src)
-  local prod_attr = lfs.attributes(prod)
-
-  return src_attr.modification > prod_attr.modification
 end
 
 return Class

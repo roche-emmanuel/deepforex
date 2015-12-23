@@ -1,4 +1,4 @@
-local Class = createClass{name="Agent",bases={"base.Object"}};
+local Class = createClass{name="Agent",bases={"rnn.FileReaderWriter"}};
 
 local LSTM = require 'model.LSTM'
 local GRU = require 'model.GRU'
@@ -406,19 +406,6 @@ function Class:train()
 	end
 	self:writeArray('val_losses.csv',val_losses)
 
-end
-
---[[
-Function: writeArray
-
-
-]]
-function Class:writeArray(filename,array)
-	local file = io.open(filename,"w")
-	for _,v in ipairs(array) do
-		file:write(v.."\n")
-	end
-	file:close()
 end
 
 return Class
