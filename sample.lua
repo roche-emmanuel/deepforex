@@ -30,7 +30,8 @@ end
 config_file = "dforex_config"
 
 local man = require "rnn.Manager"
-local Sampler = require "rnn.CharSampler"
+-- local Sampler = require "rnn.CharSampler"
+local Sampler = require "rnn.ForexSampler"
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -40,7 +41,9 @@ cmd:text('Options')
 -- required:
 cmd:argument('-model','model checkpoint to use for sampling')
 -- optional parameters
-cmd:option('-output','result_gen.txt','File were to write the result')
+-- cmd:option('-output','result_gen.txt','File were to write the result')
+cmd:option('-output','inputs/test_2007_01_to_2007_04/result_gen.txt','File were to write the result')
+cmd:option('-data_dir','inputs/test_2007_01_to_2007_04','File were to write the result')
 cmd:option('-seed',123,'random number generator\'s seed')
 cmd:option('-sample',1,' 0 to use max at each timestep, 1 to sample at each timestep')
 cmd:option('-primetext',"",'used as a prompt to "seed" the state of the LSTM using a given sequence, before we sample.')

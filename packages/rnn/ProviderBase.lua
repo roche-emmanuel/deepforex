@@ -22,9 +22,6 @@ Parameters:
 function ProviderBase(options)
 ]=]
 function Class:initialize(options)
-  CHECK(options.data_dir,"Invalid data dir")
-  self.data_dir = options.data_dir
-
   CHECK(options.batch_size,"Invalid batch size")
   self.batch_size = options.batch_size
 
@@ -168,32 +165,6 @@ function Class:isUpdateRequired(src,prod)
   local prod_attr = lfs.attributes(prod)
 
   return src_attr.modification > prod_attr.modification
-end
-
---[[
-Function: readCSV
-
-Helper method used to read a CSV file into a tensor
-]]
-function Class:readCSV(filename, nrows, ncols)
-  -- Read data from CSV to tensor
-  local csvFile = io.open(filename, 'r')  
-  local header = csvFile:read()
-
-  local data = torch.Tensor(nrows, ncols)
-
-  local i = 0  
-  for line in csvFile:lines('*l') do  
-    i = i + 1
-    local l = line:split(',')
-    for key, val in ipairs(l) do
-      data[i][key] = val
-    end
-  end
-
-  csvFile:close()
-
-  return data
 end
 
 --[[

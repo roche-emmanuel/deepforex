@@ -33,8 +33,6 @@ function Class:initialize(options)
   else
     self:uniformSeed()
   end
-
-  self._result = {}
 end
 
 --[[
@@ -122,19 +120,6 @@ function Class:sample(length, sample)
     table.insert(self._result,self._ivocab[prev_char[1]])
   end
 end
-
---[[
-Function: writeResults
-
-Write the results to file
-]]
-function Class:writeResults(filename)
-  self:debug("Writing result file ",filename)
-  local file = io.open(filename,"w")
-  file:write(table.concat(self._result))
-  file:close()
-end
-
 
 
 return Class

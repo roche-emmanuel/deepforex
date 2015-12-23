@@ -29,8 +29,12 @@ function Class:initialize(options)
 
   self._config = options
 
+  -- separator used when writing the result file:
+  self._sep = ""
+  self._result = {}
+
   self:debug("Loading checkpoint ", self.model_file)
-  
+
   -- load the checkpoint data:
   self._checkpoint = torch.load(self.model_file)
   self._prototype = self._checkpoint.protos
@@ -65,6 +69,18 @@ function Class:initializeState()
   end
   self._currentState = current_state
   self._stateSize = #current_state
+end
+
+--[[
+Function: writeResults
+
+Write the results to file
+]]
+function Class:writeResults(filename)
+  self:debug("Writing result file ",filename)
+  local file = io.open(filename,"w")
+  file:write(table.concat(self._result,self._sep))
+  file:close()
 end
 
 
