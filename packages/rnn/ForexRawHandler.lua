@@ -14,20 +14,6 @@ Function: new
 function Class:new(options)
   CHECK(options.data_dir,"Invalid data dir")
   self._dataDir = options.data_dir
-
-  CHECK(options.forcast_offset,"Invalid forcast offset")
-  self._forcastOffset = options.forcast_offset
-
-  CHECK(options.num_forcast_classes,"Invalid forcast classes")
-  self._numClasses = options.num_forcast_classes
-
-  CHECK(options.max_forcast_range,"Invalid max forcast range")
-  self._maxRange = options.max_forcast_range
-
-  -- Index of the column that should be forcasted from the raw inputs dataset:
-  -- EURUSD is the first symbol, and we have the weektime and daytime columns
-  -- before that, so by default we want to forcast the column 6
-  self._forcastIndex = 6
 end
 
 --[=[
@@ -39,7 +25,7 @@ Create a new instance of the class.
 function ForexRawHandler(options)
 ]=]
 function Class:initialize(options)
-  self._checkData = {}
+
 end
 
 --[[
@@ -70,13 +56,8 @@ function Class:loadDataset()
   self:debug("Starting with ", features:size(1), " samples.")
 
   -- From this feature tensor we must extract the labels using the forcastOffset:
-  local cprices = features:narrow(2,self._forcastIndex,1)
-  local labels, lmean, lsig = self:generateLabels{
-    prices=cprices,
-    offset=self._forcastOffset,
-    sigmaRange=self._maxRange,
-    numClasses=self._numClasses,
-  }
+  local cprices = features:narrow(2,self._rcfg.forcastIndex,1)
+  local labels= self:generateLabels{prices=cprices}
 
   -- Also only keep the valid raw samples from the features:
   features = features:sub(1,labels:size(1),1,-1)
@@ -96,16 +77,10 @@ function Class:loadDataset()
   local nsym = np/4
 
   --  Store the labels mean/sig in the checkpoint data:
-  self._checkData.labels_mean = lmean
-  self._checkData.labels_sigma = lsig
-  self._checkData.num_classes = self._numClasses
-  self._checkData.max_range = self._maxRange
-  self._checkData.forcast_offset = self._forcastOffset
-  self._checkData.forcast_index = self._forcastIndex
-  self._checkData.num_symbols = nsym
-  self._checkData.price_means = {}
-  self._checkData.price_sigmas = {}
-  
+  self._rcfg.num_symbols = nsym
+  self._rcfg.price_means = self._rcfg.price_means or {}
+  self._rcfg.price_sigmas = self._rcfg.price_sigmas or {}
+
 
   self:debug("Processing with ",nsym," symbols...")
   local offset = 2
@@ -114,11 +89,11 @@ function Class:loadDataset()
   for i=1,nsym do
     -- local cprice = features[{{},offset+4*i}]
     local cprice = features:narrow(2,offset+4*i,1)
-    local cmean = cprice:mean(1):storage()[1]
-    local csig = cprice:std(1):storage()[1]
+    local cmean = self._rcfg.price_means[i] or cprice:mean(1):storage()[1]
+    local csig = self._rcfg.price_sigmas[i] or cprice:std(1):storage()[1]
 
-    table.insert(self._checkData.price_means,cmean)
-    table.insert(self._checkData.price_sigmas,csig)
+    self._rcfg.price_means[i] = cmean
+    self._rcfg.price_sigmas[i] = csig
 
     local y = features:narrow(2,offset+1+4*(i-1),4)
     y[{}] = (y-cmean)/csig
@@ -147,15 +122,15 @@ Parameters:
 function Class:generateLabels(options)
   local prices = options.prices
   CHECK(prices,"Invalid prices")
-  local offset = options.offset
+  local offset = options.offset or self._rcfg.offset
   CHECK(offset,"Invalid offset")
-  local sigRange = options.sigmaRange
+  local sigRange = options.sigmaRange or self._rcfg.sigmaRange
   CHECK(sigRange,"Invalid sigmaRange")
-  local nunClasses = options.numClasses
+  local numClasses = options.numClasses or self._rcfg.numClasses
   CHECK(numClasses,"Invalid numClasses")
 
-  local lmean = options.mean
-  local lsig = options.sigma
+  local lmean = options.mean or self._rcfg.lmean
+  local lsig = options.sigma or self._rcfg.lsig
 
   CHECK(prices:nDimension()==1 or prices:size(2)==1, "Invalid prices dimensions.")
   
@@ -170,6 +145,9 @@ function Class:generateLabels(options)
 
   lmean = lmean or labels:mean(1):storage()[1]
   lsig = lsig or labels:std(1):storage()[1]
+
+  self._rcfg.lmean = lmean
+  self._rcfg.lsig = lsig
 
   self:debug("Normalising labels: mean=",lmean,", sigma=",lsig)
   labels = (labels - lmean)/lsig

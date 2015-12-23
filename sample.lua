@@ -31,7 +31,7 @@ config_file = "dforex_config"
 
 local man = require "rnn.Manager"
 -- local Sampler = require "rnn.CharSampler"
-local Sampler = require "rnn.ForexSampler"
+-- local Sampler = require "rnn.ForexSampler"
 
 cmd = torch.CmdLine()
 cmd:text()
@@ -41,6 +41,7 @@ cmd:text('Options')
 -- required:
 cmd:argument('-model','model checkpoint to use for sampling')
 -- optional parameters
+cmd:option('-sampler','ForexRawSampler','File were to write the result')
 -- cmd:option('-output','result_gen.txt','File were to write the result')
 cmd:option('-output','inputs/test_2007_01_to_2007_04/result_gen.txt','File were to write the result')
 cmd:option('-data_dir','inputs/test_2007_01_to_2007_04','File were to write the result')
@@ -61,6 +62,7 @@ opt = cmd:parse(arg)
 man:setup(opt)
 
 -- Build the RNN agent:
+local Sampler = require("rnn." .. opt.sampler)
 local sampler = Sampler(opt)
 
 sampler:sample(opt.length,opt.sample)
