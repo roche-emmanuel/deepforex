@@ -50,34 +50,173 @@ function Class:loadDataset()
 
   -- load the data:
   self:debug("Loading data...")
-  local features = torch.load(self.features_file)
-  
-  local timer = torch.Timer()
-  self:debug("Starting with ", features:size(1), " samples.")
+  local prices = torch.load(self.features_file)
+  local features, labels
 
+  local timer = torch.Timer()
+  self:debug("Starting with ", prices:size(1), " samples.")
+
+  -- if we use log returns we should convert the features here:
+  if self._rcfg.use_log_returns then
+    features, labels = self:generateLogReturnDataset(prices)
+  else
+    features, labels = self:generatePriceDataset(prices)
+  end
+
+  -- print("Features content: ", features:narrow(1,1,10))
+  self:debug('Done processing features in ' .. timer:time().real .. ' seconds')
+
+  return features, labels    
+end
+
+--[[
+Function: generateLogReturnDataset
+
+Method to generate log returns from the raw prices
+]]
+function Class:generateLogReturnDataset(prices)
+  self:debug("Generating log return prices")
+
+  -- Retrive the number of symbols:
+  local nsym = self:getNumSymbols(prices)
+
+  print("Initial prices: ", prices:narrow(1,1,10))
+
+  -- retrive the raw number of samples:
+  local nrows = prices:size(1)
+
+  -- for each symbol we keep on the close prices,
+  -- So we prepare a new tensor of the proper size:
+  local features = torch.Tensor(nrows,2+nsym)
+
+  -- populate this new tensor:
+  -- copy the week and day times:
+  features[{{},{1,2}}] = prices[{{},{1,2}}]
+
+  -- copy the close prices:
+  local offset = 2
+  for i=1,nsym do
+    features[{{},offset+i}] = prices[{{},offset+4*i}]
+  end
+
+  print("Initial features: ", features:narrow(1,1,10))
+
+  -- Convert the prices to log returns:
+  self:debug("Converting prices to returns...")
+  local fprices = features:narrow(2,3,nsym)
+
+  local rets = torch.cdiv(fprices[{{2,-1},{}}],fprices[{{1,-2},{}}])
+  fprices[{{2,-1},{}}] = rets
+  fprices[{1,{}}] = 1.0
+
+  print("Initial returns: ", features:narrow(1,1,10))
+
+  self:debug("Taking log of returns...")
+  fprices:log()
+
+  print("Log returns: ", features:narrow(1,1,10))
+
+  self:debug("Normalizing log returns...")
+  self._rcfg.price_means = self._rcfg.price_means or {}
+  self._rcfg.price_sigmas = self._rcfg.price_sigmas or {}
+
+  for i=1,nsym do
+    local cprice = features:narrow(2,offset+i,1)
+    
+    local cmean = self._rcfg.price_means[i] or cprice:mean(1):storage()[1]
+    local csig = self._rcfg.price_sigmas[i] or cprice:std(1):storage()[1]
+
+    self._rcfg.price_means[i] = cmean
+    self._rcfg.price_sigmas[i] = csig
+
+    cprice[{}] = (cprice-cmean)/csig
+  end
+
+  print("Normalized log returns: ", features:narrow(1,1,10))
+
+  -- Apply sigmoid transformation:
+  local cprice = features:narrow(2,offset+1,nsym)
+
+  cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
+
+  print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
+
+  -- remove the first line of the features:
+  features = features:sub(2,-1)
+
+  print("Removed the first line: ", features:narrow(1,1,10))
+
+  -- Now apply normalization:
+  self:normalizeTimes(features)
+  print("Normalized times: ", features:narrow(1,1,10))
+
+  -- Now generate the desired labels:
+  -- The label is just the next value of the sigmoid transformed log returns
+  -- labels will be taken from a given symbol index:
+
+  local idx = offset+self._rcfg.forcast_symbol
+  local labels = features:sub(2,-1,idx,idx)
+
+  --  Should remove the last row from the features:
+  features = features:sub(1,-2)
+
+  print("Generated log return labels: ", labels:narrow(1,1,10))
+
+  return features, labels
+end
+
+--[[
+Function: getNumSymbols
+
+Retrieve the number of symbols available
+]]
+function Class:getNumSymbols(features)
+  local np = features:size(2) - 2
+  local nsym = np/4
+
+  if self._rcfg.num_symbols then
+    CHECK(self._rcfg.num_symbols == nsym,"Mismatch in number of symbols")
+  end
+
+  self._rcfg.num_symbols = nsym
+
+  return nsym
+end
+
+--[[
+Function: generatePriceDataset
+
+Simple method used to generate a first version of the features/labels tensors
+]]
+function Class:generatePriceDataset(features)
+  self:debug("Generating simple price features")
   -- From this feature tensor we must extract the labels using the forcastOffset:
-  local cprices = features:narrow(2,self._rcfg.forcastIndex,1)
-  local labels= self:generateLabels{prices=cprices}
+  local cprices = features:narrow(2,2+self._rcfg.forcast_symbol*4,1)
+  local labels = self:generateLabels{prices=cprices}
 
   -- Also only keep the valid raw samples from the features:
   features = features:sub(1,labels:size(1),1,-1)
 
   -- Now apply normalization:
-  self:debug("Normalizing times...")
-  local daylen = 24*60
-  local weeklen = 5*daylen
+  self:normalizeTimes(features)
 
-  features[{{},1}] = (features[{{},1}]/weeklen - 0.5)*2.0
-  features[{{},2}] = (features[{{},2}]/daylen - 0.5)*2.0
+  self:normalizePrices(features)
 
+  return features, labels
+end
+
+--[[
+Function: normalizePrices
+
+Method called to normalize the prices
+]]
+function Class:normalizePrices(features)
   self:debug("Normalizing prices...")
 
   -- to normalize the prices we should only consider the close prices:
-  local np = features:size(2) - 2
-  local nsym = np/4
+  local nsym = self:getNumSymbols(features)
 
   --  Store the labels mean/sig in the checkpoint data:
-  self._rcfg.num_symbols = nsym
   self._rcfg.price_means = self._rcfg.price_means or {}
   self._rcfg.price_sigmas = self._rcfg.price_sigmas or {}
 
@@ -102,13 +241,21 @@ function Class:loadDataset()
     --   c = offset+j+4*(i-1)
     --   features[{{},c}] = (features[{{},c}]-cmean)/csig
     -- end
-  end
+  end  
+end
 
-  -- print("Features content: ", features:narrow(1,1,10))
+--[[
+Function: normalizeTimes
 
-  self:debug('Done processing features in ' .. timer:time().real .. ' seconds')
+Method called to normalize the times
+]]
+function Class:normalizeTimes(features)
+  self:debug("Normalizing times...")
+  local daylen = 24*60
+  local weeklen = 5*daylen
 
-  return features, labels    
+  features[{{},1}] = (features[{{},1}]/weeklen - 0.5)*2.0
+  features[{{},2}] = (features[{{},2}]/daylen - 0.5)*2.0  
 end
 
 --[[

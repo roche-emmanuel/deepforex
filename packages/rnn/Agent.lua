@@ -57,9 +57,15 @@ function Class:createPrototype()
 	local no = self._provider:getOutputSize()
 	self:debug("Number of outputs: ".. no)
 
+	local fmodule = nil
+	if opt.use_log_returns then
+		self:debug("Using final sigmoid module for log returns predictions")
+		fmodule = nn.Sigmoid
+	end
+
 	local protos = {}
 	if opt.model == 'lstm' then
-	  protos.rnn = LSTM.lstm(ni, no, opt.rnn_size, opt.num_layers, opt.dropout)
+	  protos.rnn = LSTM.lstm(ni, no, opt.rnn_size, opt.num_layers, opt.dropout,fmodule)
 	elseif opt.model == 'gru' then
 	  protos.rnn = GRU.gru(ni, opt.rnn_size, opt.num_layers, opt.dropout)
 	elseif opt.model == 'rnn' then

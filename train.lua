@@ -46,6 +46,7 @@ cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should c
 cmd:option('-forcast_offset', 20, 'Offset to consider in the raw inputs when computing the forcasts')
 cmd:option('-num_forcast_classes', 2, 'Number of classes to used when performing classification on the forcast values')
 cmd:option('-max_forcast_range', 4, 'Max number of sigmas to consider for the classification')
+cmd:option('-use_log_returns', true, 'Use log returns or not.')
 
 -- model params
 cmd:option('-rnn_size', 512, 'size of LSTM internal state')

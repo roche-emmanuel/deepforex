@@ -26,11 +26,12 @@ function Class:new(options)
     offset = options.forcast_offset,
     numClasses = options.num_forcast_classes,
     sigmaRange = options.max_forcast_range,
-
+    use_log_returns = options.use_log_returns,
+    
   -- Index of the column that should be forcasted from the raw inputs dataset:
   -- EURUSD is the first symbol, and we have the weektime and daytime columns
   -- before that, so by default we want to forcast the column 6
-    forcastIndex = 6,
+    forcast_symbol = 1,
   }
 
   -- self:debug("Rcfg=", self._rcfg)

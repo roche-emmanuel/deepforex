@@ -1,6 +1,6 @@
 
 local LSTM = {}
-function LSTM.lstm(input_size, output_size, rnn_size, n, dropout)
+function LSTM.lstm(input_size, output_size, rnn_size, n, dropout, fmodule)
   dropout = dropout or 0 
 
   -- there will be 2*n+1 inputs
@@ -61,7 +61,7 @@ function LSTM.lstm(input_size, output_size, rnn_size, n, dropout)
   if output_size == 1 then
     -- after the dropout, we need to compute a linear single value,
     -- and apply a tanh on it to get value in the range (-1,1)
-    local final = nn.Tanh()(proj)
+    local final = (fmodule or nn.Tanh)()(proj)
     table.insert(outputs, final)
   else
     local logsoft = nn.LogSoftMax()(proj)
