@@ -116,6 +116,11 @@ function Class:generateLogReturnDataset(prices)
 
   print("Log returns: ", features:narrow(1,1,10))
 
+  -- remove the first line of the features:
+  features = features:sub(2,-1)
+
+  print("Removed the first line: ", features:narrow(1,1,10))
+
   self:debug("Normalizing log returns...")
   self._rcfg.price_means = self._rcfg.price_means or {}
   self._rcfg.price_sigmas = self._rcfg.price_sigmas or {}
@@ -125,6 +130,8 @@ function Class:generateLogReturnDataset(prices)
     
     local cmean = self._rcfg.price_means[i] or cprice:mean(1):storage()[1]
     local csig = self._rcfg.price_sigmas[i] or cprice:std(1):storage()[1]
+
+    self:debug("Symbol ",i," : log return mean=",cmean,", sigma=",csig)
 
     self._rcfg.price_means[i] = cmean
     self._rcfg.price_sigmas[i] = csig
@@ -141,11 +148,6 @@ function Class:generateLogReturnDataset(prices)
 
   print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
 
-  -- remove the first line of the features:
-  features = features:sub(2,-1)
-
-  print("Removed the first line: ", features:narrow(1,1,10))
-
   -- Now apply normalization:
   self:normalizeTimes(features)
   print("Normalized times: ", features:narrow(1,1,10))
@@ -154,6 +156,8 @@ function Class:generateLogReturnDataset(prices)
   -- The label is just the next value of the sigmoid transformed log returns
   -- labels will be taken from a given symbol index:
 
+  self:debug("Forcast symbol index: ", self._rcfg.forcast_symbol)
+
   local idx = offset+self._rcfg.forcast_symbol
   local labels = features:sub(2,-1,idx,idx)
 
@@ -161,6 +165,13 @@ function Class:generateLogReturnDataset(prices)
   features = features:sub(1,-2)
 
   print("Generated log return labels: ", labels:narrow(1,1,10))
+
+  if self._rcfg.numClasses > 1 then
+    labels = self:generateClasses(labels,0,1,self._rcfg.numClasses)
+  end
+
+  print("Labels classes: ", labels:narrow(1,1,10))
+  print("Final features: ", features:narrow(1,1,10))
 
   return features, labels
 end
@@ -181,6 +192,32 @@ function Class:getNumSymbols(features)
   self._rcfg.num_symbols = nsym
 
   return nsym
+end
+
+--[[
+Function: generateClasses
+
+Method used to cut a given vector into classes
+]]
+function Class:generateClasses(labels,rmin,rmax,nclasses)
+  -- We now have normalized labels,
+  -- but what we are interested in is in classifying the possible outputs:
+  -- First we clamp the data with the max range (as number of sigmas):
+  -- we assume here that we can replace the content of the provided vector.
+  local eps = 1e-6
+  labels = labels:clamp(rmin,rmax - eps)
+
+  -- Now we cluster the labels in the different classes:
+  self:debug("Number of classes: ", nclasses)
+  local range = rmax - rmin
+  self:debug("Labels range: ", range)
+  local classSize = range/nclasses
+  self:debug("Label class size: ", classSize)
+
+  -- The labels classes should be 1 based, so we add 1 below:
+  labels = torch.floor((labels - rmin)/classSize) + 1  
+
+  return labels
 end
 
 --[[
@@ -302,21 +339,7 @@ function Class:generateLabels(options)
   -- from this point we have to consider that lsig=1.0
   lsig = 1.0
 
-  -- We now have normalized labels,
-  -- but what we are interested in is in classifying the possible outputs:
-  -- First we clamp the data with the max range (as number of sigmas):
-  local eps = 1e-6
-  labels = labels:clamp(-lsig*sigRange,lsig*sigRange - eps)
-
-  -- Now we cluster the labels in the different classes:
-  self:debug("Number of classes: ", numClasses)
-  local range = (2*lsig*sigRange)
-  self:debug("Labels range: ", range)
-  local classSize = range/numClasses
-  self:debug("Label class size: ", classSize)
-
-  -- The labels classes should be 1 based, so we add 1 below:
-  labels = torch.floor((labels - (-lsig * sigRange))/classSize) + 1
+  labels = self:generateClasses(labels,-lsig*sigRange,lsig*sigRange,numClasses)
 
   -- print("labels content: ", labels:narrow(1,1,100))
   -- self:writeTensor("labels.csv", labels)
