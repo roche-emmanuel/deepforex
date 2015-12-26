@@ -51,6 +51,9 @@ cmd:option('-gpuid',0,'which gpu to use. -1 = use CPU')
 cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
 
+cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
+cmd:option('-num_classes',2,'Number of classes to consider when performing classification.')
+
 
 cmd:text()
 
@@ -64,6 +67,19 @@ utils:setupGPU(opt)
 -- for the network
 -- And thus we must load the data
 local raw_inputs = utils:loadRawInputs(opt)
+
+-- Once we have loaded the raw inputs we can build the desired features/labels from them
+-- The raw inputs will contain 2 cols for the week and day times plus 4 cols per symbol
+-- so we can extract the number of symbols:
+local nsym = utils:getNumSymbols(raw_inputs)
+log:debug("Detected ",nsym," symbols in raw inputs.")
+
+-- Now we can build the features tensor:
+local features = utils:generateLogReturnFeatures(opt, raw_inputs)
+
+-- From the features, we can build the labels tensor:
+-- not that this method will also change the features tensor.
+local features, labels = utils:generateLogReturnLabels(opt, features)
 
 -- Create the RNN prototype:
 -- local proto = utils:createPrototype(opt)

@@ -284,6 +284,179 @@ function Class:loadRawInputs(opt,fname)
 
 	  self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
 	end
+
+	return torch.load(dest)
+end
+
+--[[
+Function: getNumSymbols
+
+Retrieve the number of symbols considered in a given raw inputs dataset
+]]
+function Class:getNumSymbols(inputs)
+  local np = inputs:size(2) - 2
+  return np/4	
+end
+
+--[[
+Function: normalizeTimes
+
+Method called to normalize the times
+]]
+function Class:normalizeTimes(features)
+  self:debug("Normalizing times...")
+  local daylen = 24*60
+  local weeklen = 5*daylen
+
+  features[{{},1}] = (features[{{},1}]/weeklen - 0.5)*2.0
+  features[{{},2}] = (features[{{},2}]/daylen - 0.5)*2.0  
+end
+
+--[[
+Function: generateLogReturnFeatures
+
+Method used to generate the log returns features from a raw_inputs tensor
+]]
+function Class:generateLogReturnFeatures(opt,prices)
+  self:debug("Generating log return features")
+
+  -- Retrive the number of symbols:
+  local nsym = self:getNumSymbols(prices)
+
+  print("Initial prices: ", prices:narrow(1,1,10))
+
+  -- retrive the raw number of samples:
+  local nrows = prices:size(1)
+
+  -- for each symbol we keep on the close prices,
+  -- So we prepare a new tensor of the proper size:
+  local features = torch.Tensor(nrows,2+nsym)
+
+  -- populate this new tensor:
+  -- copy the week and day times:
+  features[{{},{1,2}}] = prices[{{},{1,2}}]
+
+  -- copy the close prices:
+  local offset = 2
+  for i=1,nsym do
+    features[{{},offset+i}] = prices[{{},offset+4*i}]
+  end
+
+  print("Initial features: ", features:narrow(1,1,10))
+
+  -- Convert the prices to log returns:
+  self:debug("Converting prices to returns...")
+  local fprices = features:narrow(2,3,nsym)
+
+  local rets = torch.cdiv(fprices[{{2,-1},{}}],fprices[{{1,-2},{}}])
+  fprices[{{2,-1},{}}] = rets
+  fprices[{1,{}}] = 1.0
+
+  print("Initial returns: ", features:narrow(1,1,10))
+
+  self:debug("Taking log of returns...")
+  fprices:log()
+
+  print("Log returns: ", features:narrow(1,1,10))
+
+  -- remove the first line of the features:
+  features = features:sub(2,-1)
+
+  print("Removed the first line: ", features:narrow(1,1,10))
+
+  self:debug("Normalizing log returns...")
+  opt.price_means = opt.price_means or {}
+  opt.price_sigmas = opt.price_sigmas or {}
+
+  for i=1,nsym do
+    local cprice = features:narrow(2,offset+i,1)
+    
+    local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
+    local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
+
+    self:debug("Symbol ",i," : log return mean=",cmean,", sigma=",csig)
+
+    opt.price_means[i] = cmean
+    opt.price_sigmas[i] = csig
+
+    cprice[{}] = (cprice-cmean)/csig
+  end
+
+  print("Normalized log returns: ", features:narrow(1,1,10))
+
+  -- Apply sigmoid transformation:
+  local cprice = features:narrow(2,offset+1,nsym)
+
+  cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
+
+  print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
+
+  -- Now apply normalization:
+  self:normalizeTimes(features)
+  print("Normalized times: ", features:narrow(1,1,10))
+
+  return features
+end
+
+--[[
+Function: generateLogReturnLabels
+
+Method used to generate the labels from the features
+]]
+function Class:generateLogReturnLabels(opt, features)
+  self:debug("Generating log return features")
+  CHECK(opt.forcast_symbol,"Invalid forcast_symbol")
+  CHECK(opt.num_classes,"Invalid num_classes")
+
+  -- Now generate the desired labels:
+  -- The label is just the next value of the sigmoid transformed log returns
+  -- labels will be taken from a given symbol index:
+
+  self:debug("Forcast symbol index: ", opt.forcast_symbol)
+
+  local offset = 2
+  local idx = offset+opt.forcast_symbol
+  local labels = features:sub(2,-1,idx,idx)
+
+  --  Should remove the last row from the features:
+  features = features:sub(1,-2)
+
+  print("Generated log return labels: ", labels:narrow(1,1,10))
+
+  if opt.num_classes > 1 then
+    labels = self:generateClasses(labels,0,1,opt.num_classes)
+  end
+
+  print("Labels classes: ", labels:narrow(1,1,10))
+  print("Final features: ", features:narrow(1,1,10))
+
+  return features, labels	
+end
+
+--[[
+Function: generateClasses
+
+Method used to generated classes for a given vector
+]]
+function Class:generateClasses(labels,rmin,rmax,nclasses)
+  -- We now have normalized labels,
+  -- but what we are interested in is in classifying the possible outputs:
+  -- First we clamp the data with the max range (as number of sigmas):
+  -- we assume here that we can replace the content of the provided vector.
+  local eps = 1e-6
+  labels = labels:clamp(rmin,rmax - eps)
+
+  -- Now we cluster the labels in the different classes:
+  self:debug("Number of classes: ", nclasses)
+  local range = rmax - rmin
+  self:debug("Labels range: ", range)
+  local classSize = range/nclasses
+  self:debug("Label class size: ", classSize)
+
+  -- The labels classes should be 1 based, so we add 1 below:
+  labels = torch.floor((labels - rmin)/classSize) + 1  
+
+  return labels
 end
 
 return Class()
