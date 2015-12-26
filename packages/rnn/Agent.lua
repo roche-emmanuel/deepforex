@@ -32,7 +32,11 @@ function Class:initialize(options)
 	CHECK(options.config,"Invalid config")
 	self._config = options.config
 
-	self:createPrototype()
+	if string.len(self._config.init_from) > 0 then
+		self:loadFromCheckpointFile(self._config.init_from)
+	else
+		self:createPrototype()
+	end
 
 	self:createInitState()
 
@@ -42,11 +46,64 @@ function Class:initialize(options)
 end
 
 --[[
+Function: loadFromCheckpointFile
+
+Method used to load the prototype for this network from a checkpoint file
+]]
+function Class:loadFromCheckpointFile(file)
+	self._randomInitNeeded = false
+
+  self:debug('Loading a model from checkpoint ',file)
+  local checkpoint = torch.load(file)
+  local protos = checkpoint.protos
+  
+  -- make sure the vocabs are the same
+  -- local vocab_compatible = true
+  -- local checkpoint_vocab_size = 0
+  -- for c,i in pairs(checkpoint.vocab) do
+  --     if not (vocab[c] == i) then
+  --         vocab_compatible = false
+  --     end
+  --     checkpoint_vocab_size = checkpoint_vocab_size + 1
+  -- end
+  -- if not (checkpoint_vocab_size == vocab_size) then
+  --     vocab_compatible = false
+  --     self:debug('checkpoint_vocab_size: ' .. checkpoint_vocab_size)
+  -- end
+  -- assert(vocab_compatible, 'error, the character vocabulary for this dataset and the one in the saved checkpoint are not the same. This is trouble.')
+  
+  -- overwrite model settings based on checkpoint to ensure compatibility
+  self:debug('overwriting rnn_size=' .. checkpoint.opt.rnn_size .. ', num_layers=' .. checkpoint.opt.num_layers .. ', model=' .. checkpoint.opt.model .. ' based on the checkpoint.')
+
+  self._config.rnn_size = checkpoint.opt.rnn_size
+  self._config.num_layers = checkpoint.opt.num_layers
+  self._config.model = checkpoint.opt.model
+
+	-- ship the model to the GPU if desired
+	if opt.gpuid >= 0 and opt.opencl == 0 then
+	  for k,v in pairs(protos) do 
+	    -- log:debug("Converting ",k," to GPU...")
+	    v:cuda() 
+	  end
+	end
+
+	if opt.gpuid >= 0 and opt.opencl == 1 then
+	  for k,v in pairs(protos) do 
+	    v:cl() 
+	  end
+	end
+
+	self._prototype = protos  
+end
+
+--[[
 Function: createPrototype
 
 Method used to create the prototype of the network
 ]]
 function Class:createPrototype()
+	self._randomInitNeeded = true
+
 	-- Create the model:
 	local opt = self._config
 
@@ -136,9 +193,7 @@ function Class:initParameters()
 	-- log:debug("Number of parameters: ", params:nElement())
 
 	-- initialization
-	local do_random_init = true
-
-	if do_random_init then
+	if self._randomInitNeeded then
 	  self._params:uniform(-0.08, 0.08) -- small uniform numbers
 	end
 

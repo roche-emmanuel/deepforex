@@ -66,6 +66,7 @@ cmd:option('-train_frac',0.95,'fraction of data that goes into train set')
 cmd:option('-val_frac',0.05,'fraction of data that goes into validation set')
             -- test_frac will be computed as (1 - train_frac - val_frac)
 cmd:option('-init_from', '', 'initialize network parameters from checkpoint at this path')
+
 -- bookkeeping
 cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-print_every',1,'how many steps/minibatches between printing out the loss')
