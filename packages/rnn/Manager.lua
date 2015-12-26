@@ -41,7 +41,10 @@ Setup for the common elements
 ]]
 function Class:setup(opt)
 	self:debug("Setting up RNN network system.")
-
+	CHECK(opt.seed~=nil,"Invalid seed value")
+	CHECK(opt.gpuid~=nil,"Invalid gpuid value")
+	CHECK(opt.opencl~=nil,"Invalid opencl value")
+	
 	torch.manualSeed(opt.seed)
 
 	-- initialize cunn/cutorch for training on the GPU and fall back to CPU gracefully

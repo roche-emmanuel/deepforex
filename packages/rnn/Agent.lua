@@ -356,6 +356,7 @@ function Class:trainEval(x)
       end
     end
   end
+  
   ------------------------ misc ----------------------
   -- transfer final state to initial state (BPTT)
   self._initStateGlobal = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
