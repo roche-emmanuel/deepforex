@@ -6,7 +6,7 @@ require 'nngraph'
 require 'optim'
 require 'lfs'
 
-require 'utils.misc'
+local model_utils = require 'utils.model_utils'
 
 --[[
 Class: rnn.Utils
@@ -99,7 +99,7 @@ function Class:createLSTM(opt)
 	CHECK(opt.num_outputs,"Invalid num_outputs")
 
 	local input_size = opt.num_inputs
-	local output_size = opt.output_size
+	local output_size = opt.num_outputs
 	local rnn_size = opt.rnn_size
 	local n = opt.num_layers
 	local dropout = opt.dropout
@@ -213,6 +213,8 @@ function Class:createPrototype(opt)
 	    v:cl() 
 	  end
 	end
+
+	return protos
 end
 
 --[[
@@ -398,6 +400,23 @@ function Class:generateLogReturnFeatures(opt,prices)
   return features
 end
 
+-- preprocessing helper function
+function prepro(opt, x)
+  -- x = x:transpose(1,2):contiguous() -- swap the axes for faster indexing
+  x = x:contiguous() -- swap the axes for faster indexing
+  
+  if opt.gpuid >= 0 and opt.opencl == 0 then -- ship the input arrays to GPU
+    -- have to convert to float because integers can't be cuda()'d
+    x = x:float():cuda()
+  end
+
+  if opt.gpuid >= 0 and opt.opencl == 1 then -- ship the input arrays to GPU
+    x = x:cl()
+  end
+
+  return x
+end
+
 --[[
 Function: generateLogReturnLabels
 
@@ -430,7 +449,8 @@ function Class:generateLogReturnLabels(opt, features)
   print("Labels classes: ", labels:narrow(1,1,10))
   print("Final features: ", features:narrow(1,1,10))
 
-  return features, labels	
+
+  return prepro(opt,features), prepro(opt,labels)
 end
 
 --[[
@@ -458,5 +478,394 @@ function Class:generateClasses(labels,rmin,rmax,nclasses)
 
   return labels
 end
+
+--[[
+Function: createInitState
+
+Create the init state that will be used to store the current
+initial state of the RNN
+]]
+function Class:createInitState(opt)
+	self:debug("Creating init state.")
+
+	-- the initial state of the cell/hidden states
+	local init_state = {}
+	for L=1,opt.num_layers do
+	  local h_init = torch.zeros(opt.batch_size, opt.rnn_size)
+	  if opt.gpuid >=0 and opt.opencl == 0 then h_init = h_init:cuda() end
+	  if opt.gpuid >=0 and opt.opencl == 1 then h_init = h_init:cl() end
+	  table.insert(init_state, h_init:clone())
+	  if opt.model == 'lstm' then
+	    table.insert(init_state, h_init:clone())
+	  end
+	end
+
+	return init_state
+end
+
+--[[
+Function: cloneList
+
+Method used to clone a list of tensor
+]]
+function Class:cloneList(tensor_list, zero_too)
+  -- takes a list of tensors and returns a list of cloned tensors
+  local out = {}
+  for k,v in pairs(tensor_list) do
+      out[k] = v:clone()
+      if zero_too then out[k]:zero() end
+  end
+  return out	
+end
+
+--[[
+Function: initParameters
+
+Method called to perform parameter initialization
+]]
+function Class:initParameters(opt,proto)
+	self:debug("Initializing parameters...")
+	
+	-- put the above things into one flattened parameters tensor
+	local params, grad_params = model_utils.combine_all_parameters(proto.rnn)
+	-- log:debug("Number of parameters: ", params:nElement())
+
+	-- initialization:
+	local randomInitNeeded = true
+	if randomInitNeeded then
+	  params:uniform(-0.08, 0.08) -- small uniform numbers
+	end
+
+	-- initialize the LSTM forget gates with slightly higher biases to encourage remembering in the beginning
+	if opt.model == 'lstm' then
+	  for layer_idx = 1, opt.num_layers do
+	    for _,node in ipairs(proto.rnn.forwardnodes) do
+	      if node.data.annotations.name == "i2h_" .. layer_idx then
+	        self:debug('Setting forget gate biases to 1 in LSTM layer ' .. layer_idx)
+	        -- the gates are, in order, i,f,o,g, so f is the 2nd block of weights
+	        node.data.module.bias[{{opt.rnn_size+1, 2*opt.rnn_size}}]:fill(1.0)
+	      end
+	    end
+	  end
+	end
+
+	self:debug('Number of parameters in the model: ' .. params:nElement())
+
+	return params, grad_params
+end
+
+--[[
+Function: generateClones
+
+Method used to generate the clones of the protoype
+]]
+function Class:generateClones(opt, protos)
+	self:debug("Generating clones...")
+	CHECK(opt.seq_length,"Invalid seq_length")
+
+	-- make a bunch of clones after flattening, as that reallocates memory
+	clones = {}
+	for name,proto in pairs(protos) do
+	  self:debug('Cloning ' .. name)
+	  clones[name] = model_utils.clone_many_times(proto, opt.seq_length, not proto.parameters)
+	end
+
+	return clones
+end
+
+--[[
+Function: evaluate
+
+Method used to evaluate the prediction on a given input
+]]
+function Class:evaluate(opt, tdesc)
+  tdesc.grad_params:zero()
+
+  ------------------ get minibatch -------------------
+  local x = tdesc.features:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+  local y = tdesc.labels:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+
+  ------------------- forward pass -------------------
+  local rnn_state = {[0] = tdesc.global_init_state}
+  -- local predictions = {}           -- softmax outputs
+  local loss = 0
+  local pred;
+
+  -- observing dimensions of seq_length x batch_size below:
+  -- print("x dimensions: ",x:size(1),"x",x:size(2))
+  -- print("y dimensions: ",y:size(1),"x",y:size(2))
+  local len = opt.seq_length
+
+  for t=1,len do
+    tdesc.clones.rnn[t]:evaluate() -- make sure we are in correct mode (this is cheap, sets flag)
+    local lst = tdesc.clones.rnn[t]:forward{x:narrow(1,t,1), unpack(rnn_state[t-1])}
+
+    -- print("x[".. t.."]:", x[t])
+    -- line below will always return #lst=5 (with 2 layers)
+    -- and  #lst=7 with 3 layers 
+    -- This correspond to the description of the LSTM model (2 outputs per layers + final output)
+    -- print("Size of lst is: ".. #lst .. " at seq = "..t)
+
+    -- We anticipate that the value below should be 4 when we have 2 layers: OK
+    -- print("Size of init_state: ".. #init_state)
+
+    rnn_state[t] = {}
+    for i=1,#tdesc.init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
+
+    -- override the prediction value each time: we only need the latest one:
+    pred = lst[#lst]
+
+    -- predictions[t] = lst[#lst] -- last element is the prediction
+    -- self:debug("predictions[",t,"] dims= ",predictions[t]:nDimension(),": ",predictions[t]:size(1),"x",predictions[t]:size(2))
+    -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
+
+    -- loss = loss + tdesc.clones.criterion[t]:forward(predictions[t], y[t])
+    -- self:debug("New loss value: ",loss)
+  end
+
+	-- The loss should only be considered on the latest prediction:
+	loss = tdesc.clones.criterion[len]:forward(pred, y[len])
+  -- loss = loss / opt.seq_length
+
+  -- Update the global init state:
+	tdesc.global_init_state = rnn_state[1]
+
+  -- We also check if we have the proper sign for the prediction:
+  local goodSign = 0
+
+  pred = pred:storage()[1]
+  local yval = y[{len,1}]
+
+  self:debug("Prediction: ", pred, ", real value: ",yval)
+
+  if opt.num_classes == 1 and ((pred-0.5) * (yval-0.5) > 0.0) then
+  	goodSign = 1
+  end
+
+	return loss, goodSign
+end
+
+--[[
+Function: trainEval
+
+Core method used during training.
+Do fwd/bwd and return loss, grad_params
+]]
+function Class:trainEval(opt, tdesc, x)
+  if x ~= tdesc.params then
+    tdesc.params:copy(x)
+  end
+  tdesc.grad_params:zero()
+
+  ------------------ get minibatch -------------------
+  local x = tdesc.features:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+  local y = tdesc.labels:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+
+  ------------------- forward pass -------------------
+  local rnn_state = {[0] = tdesc.global_init_state}
+  local predictions = {}           -- softmax outputs
+  local loss = 0
+
+  -- observing dimensions of seq_length x batch_size below:
+  -- print("x dimensions: ",x:size(1),"x",x:size(2))
+  -- print("y dimensions: ",y:size(1),"x",y:size(2))
+
+  for t=1,opt.seq_length do
+    tdesc.clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
+    local lst = tdesc.clones.rnn[t]:forward{x:narrow(1,t,1), unpack(rnn_state[t-1])}
+
+    -- print("x[".. t.."]:", x[t])
+    -- line below will always return #lst=5 (with 2 layers)
+    -- and  #lst=7 with 3 layers 
+    -- This correspond to the description of the LSTM model (2 outputs per layers + final output)
+    -- print("Size of lst is: ".. #lst .. " at seq = "..t)
+
+    -- We anticipate that the value below should be 4 when we have 2 layers: OK
+    -- print("Size of init_state: ".. #init_state)
+
+    rnn_state[t] = {}
+    for i=1,#tdesc.init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
+
+    predictions[t] = lst[#lst] -- last element is the prediction
+    -- self:debug("predictions[",t,"] dims= ",predictions[t]:nDimension(),": ",predictions[t]:size(1),"x",predictions[t]:size(2))
+    -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
+
+    loss = loss + tdesc.clones.criterion[t]:forward(predictions[t], y[t])
+    -- self:debug("New loss value: ",loss)
+  end
+  loss = loss / opt.seq_length
+  
+  ------------------ backward pass -------------------
+  -- initialize gradient at time t to be zeros (there's no influence from future)
+  local drnn_state = {[opt.seq_length] = self:cloneList(tdesc.init_state, true)} -- true also zeros the tdesc.clones
+  for t=opt.seq_length,1,-1 do
+    -- backprop through loss, and softmax/linear
+    local doutput_t = tdesc.clones.criterion[t]:backward(predictions[t], y[t])
+    table.insert(drnn_state[t], doutput_t)
+    local dlst = tdesc.clones.rnn[t]:backward({x[t], unpack(rnn_state[t-1])}, drnn_state[t])
+    drnn_state[t-1] = {}
+    for k,v in pairs(dlst) do
+      if k > 1 then -- k == 1 is gradient on x, which we dont need
+          -- note we do k-1 because first item is dembeddings, and then follow the 
+          -- derivatives of the state, starting at index 2. I know...
+        drnn_state[t-1][k-1] = v
+      end
+    end
+  end
+  
+  ------------------------ misc ----------------------
+  -- transfer final state to initial state (BPTT)
+  -- here we use only the subsequence rnn_state, not the final one,
+  -- because the next sequence will start with the next time step, and not
+  -- the final sequence time step.
+  tdesc.global_init_state = rnn_state[1]
+
+  -- tdesc.global_init_state = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
+  -- self._grad_params:div(opt.seq_length) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
+  -- clip gradient element-wise
+  tdesc.grad_params:clamp(-opt.grad_clip, opt.grad_clip)
+  return loss, tdesc.grad_params	
+end
+
+--[[
+Function: performTrainSession
+
+Method used to perform a train session
+]]
+function Class:performTrainSession(opt, tdesc)
+	CHECK(opt.learning_rate,"Invalid learning_rate")
+	CHECK(opt.decay_rate,"Invalid decay_rate")
+	CHECK(opt.max_epochs,"Invalid max_epochs")
+	CHECK(opt.train_size,"Invalid train_size")
+	CHECK(opt.seq_length,"Invalid seq_length")
+	CHECK(opt.accurate_gpu_timing,"Invalid accurate_gpu_timing")
+	CHECK(opt.learning_rate_decay,"Invalid learning_rate_decay")
+	CHECK(opt.learning_rate_decay_after,"Invalid learning_rate_decay_after")
+  CHECK(opt.print_every,"Invalid print_every")
+	CHECK(opt.ema_adaptation,"Invalid ema_adaptation")
+
+	-- start optimization here
+	tdesc.train_losses = tdesc.train_losses or {}
+	-- local val_losses = {}
+
+	local optim_state = {learningRate = opt.learning_rate, alpha = opt.decay_rate}
+
+	-- The number of iteration is the number of times we can extract a sequence of seq_length
+	-- in the train_size, numtiplied by the number of epochs we allow:
+
+	local ntrain_by_epoch = (opt.train_size - opt.seq_length + 1)
+	local iterations = opt.max_epochs * ntrain_by_epoch
+	local loss0 = nil
+
+	local feval = function(x)
+		return self:trainEval(opt, tdesc, x)
+	end
+
+	for i = 1, iterations do
+	  local epoch = i / ntrain_by_epoch
+	  tdesc.iteration = i
+
+	  local timer = torch.Timer()
+
+	  local _, loss = optim.rmsprop(feval, tdesc.params, optim_state)
+	  if opt.accurate_gpu_timing == 1 and opt.gpuid >= 0 then
+	    --[[
+	    Note on timing: The reported time can be off because the GPU is invoked async. If one
+	    wants to have exactly accurate timings one must call cutorch.synchronize() right here.
+	    I will avoid doing so by default because this can incur computational overhead.
+	    --]]
+	    cutorch.synchronize()
+	  end
+	  local time = timer:time().real
+	  
+	  local train_loss = loss[1] -- the loss is inside a list, pop it
+	  table.insert(tdesc.train_losses, train_loss)
+
+	  -- exponential learning rate decay
+	  -- if i % ntrain_by_epoch == 0 and opt.learning_rate_decay < 1 then
+	  --   if epoch >= opt.learning_rate_decay_after then
+	  --     local decay_factor = opt.learning_rate_decay
+	  --     optim_state.learningRate = optim_state.learningRate * decay_factor -- decay it
+	  --     self:debug('Decayed learning rate by a factor ' .. decay_factor .. ' to ' .. optim_state.learningRate)
+	  --   end
+	  -- end
+
+	  -- every now and then or on last iteration
+	  -- if i % opt.eval_val_every == 0 or i == iterations then
+	  --   -- evaluate loss on validation data
+	  --   local val_loss = self:evaluateSplit(2) -- 2 = validation
+	  --   val_losses[i] = val_loss
+
+	  --   local savefile = string.format('%s/lm_%s_epoch%.2f_%.4f.t7', opt.checkpoint_dir, opt.savefile, epoch, val_loss)
+	  --   self:debug('Saving checkpoint to ' .. savefile)
+	  --   local checkpoint = {}
+	  --   checkpoint.protos = self._prototype
+	  --   checkpoint.opt = opt
+	  --   checkpoint.train_losses = train_losses
+	  --   checkpoint.val_loss = val_loss
+	  --   checkpoint.val_losses = val_losses
+	  --   checkpoint.i = i
+	  --   checkpoint.epoch = epoch
+	  --   self._provider:addCheckpointData(checkpoint)
+	  --   torch.save(savefile, checkpoint)
+	  -- end
+
+	  if i % opt.print_every == 0 then
+	    self:debug(string.format("%d/%d (epoch %.3f), train_loss = %6.8f, grad/param norm = %6.4e, time/batch = %.4fs", i, iterations, epoch, train_loss, tdesc.grad_params:norm() / tdesc.params:norm(), time))
+	  end
+	 
+	  if i % 10 == 0 then collectgarbage() end
+
+	  -- handle early stopping if things are going really bad
+	  if loss[1] ~= loss[1] then
+	    self:warn('loss is NaN.  This usually indicates a bug.  Please check the issues page for existing issues, or create a new issue, if none exist.  Ideally, please state: your operating system, 32-bit/64-bit, your blas version, cpu/cuda/cl?')
+	    break -- halt
+	  end
+
+	  if loss0 == nil then loss0 = loss[1] end
+	  if loss[1] > loss0 * 300 then
+	    self:warn('loss is exploding, aborting.')
+	    break -- halt
+	  end
+	end
+
+	tdesc.eval_losses = tdesc.eval_losses or {}
+	tdesc.correct_signs = tdesc.correct_signs or {}
+
+	tdesc.current_sign = tdesc.current_sign or 0.5
+
+	local alpha = opt.ema_adaptation
+
+	-- Now that we are done with the training part we should evaluate the network predictions:
+	for i=1,opt.eval_size do
+
+		--  Move to the nex iteration each time:
+		tdesc.iteration = tdesc.iteration + 1 
+		local loss, sign = self:evaluate(opt, tdesc)
+
+		tdesc.current_loss = tdesc.current_loss and (tdesc.current_loss * (1.0 - alpha) + loss * alpha) or loss
+		table.insert(tdesc.eval_losses,tdesc.current_loss)
+
+    if opt.num_classes == 1 then
+  		tdesc.current_sign = (tdesc.current_sign * (1.0 - alpha) + sign * alpha)
+    end
+
+    table.insert(tdesc.correct_signs, tdesc.current_sign)
+		self:debug("Evaluation ",i,": Loss EMA=",tdesc.current_loss,", correct sign EMA=",tdesc.current_sign)
+	end
+end
+
+
+--[[
+Function: writeArray
+]]
+function Class:writeArray(filename,array)
+  local file = io.open(filename,"w")
+  for _,v in ipairs(array) do
+    file:write(v.."\n")
+  end
+  file:close()
+end
+
 
 return Class()
