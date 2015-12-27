@@ -41,8 +41,8 @@ cmd:text('Options')
 cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
 
 -- model params
-cmd:option('-rnn_size', 128, 'size of LSTM internal state')
-cmd:option('-num_layers', 2, 'number of layers in the LSTM')
+cmd:option('-rnn_size', 256, 'size of LSTM internal state')
+cmd:option('-num_layers', 3, 'number of layers in the LSTM')
 cmd:option('-model', 'lstm', 'lstm,gru or rnn')
 
 -- Base setup options:
@@ -56,7 +56,7 @@ cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
 cmd:option('-train_size',2000,'Number of steps used for each training session')
 cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
-cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
+cmd:option('-max_sessions',150,'Max number of training/eval sessions to perform')
 cmd:option('-print_every',1,'how many steps/minibatches between printing out the loss')
 
 cmd:option('-learning_rate',2e-3,'learning rate')
@@ -64,6 +64,7 @@ cmd:option('-learning_rate_decay',0.97,'learning rate decay')
 cmd:option('-learning_rate_decay_after',10,'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
 cmd:option('-max_epochs',1.0,'number of full passes through the training data')
+cmd:option('-initial_max_epochs',1.0,'number of full passes through the training data on the first training session')
 
 cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings when using GPU. Might make code bit slower but reports accurate timings.')
 cmd:option('-grad_clip',5,'clip gradients at this value')
@@ -151,8 +152,13 @@ tdesc.clones = clones
 
 local timer = torch.Timer()
 
+-- keep a backup of the max epochs:
+local max_epochs = opt.max_epochs
+
 for i=1,nsessions do
   log:debug("Performing session ",i,"...")
+
+  opt.max_epochs = i==1 and opt.initial_max_epochs or max_epochs
 
   -- No init state influence between training sessions:
   tdesc.global_init_state = utils:cloneList(global_init_state,true)
@@ -163,6 +169,8 @@ for i=1,nsessions do
   tdesc.train_offset = tdesc.train_offset + opt.eval_size
 
   -- Now we should write the result arrays:
+  utils:writeArrays("eval_results.csv",{tdesc.evalidx_values,tdesc.pred_values,tdesc.label_values},{"eval_index","prediction","label"})
+
   utils:writeArray("train_losses.csv", tdesc.train_losses)
   utils:writeArray("eval_losses.csv", tdesc.eval_losses)
   utils:writeArray("correct_signs.csv", tdesc.correct_signs)

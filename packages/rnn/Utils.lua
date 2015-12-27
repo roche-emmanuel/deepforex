@@ -630,19 +630,10 @@ function Class:evaluate(opt, tdesc)
   -- Update the global init state:
 	tdesc.global_init_state = rnn_state[1]
 
-  -- We also check if we have the proper sign for the prediction:
-  local goodSign = 0
-
   pred = pred:storage()[1]
   local yval = y[{len,1}]
 
-  self:debug("Prediction: ", pred, ", real value: ",yval)
-
-  if opt.num_classes == 1 and ((pred-0.5) * (yval-0.5) > 0.0) then
-  	goodSign = 1
-  end
-
-	return loss, goodSign
+	return loss, pred, yval 
 end
 
 --[[
@@ -830,7 +821,10 @@ function Class:performTrainSession(opt, tdesc)
 	end
 
 	tdesc.eval_losses = tdesc.eval_losses or {}
-	tdesc.correct_signs = tdesc.correct_signs or {}
+  tdesc.correct_signs = tdesc.correct_signs or {}
+  tdesc.evalidx_values = tdesc.evalidx_values or {}
+  tdesc.pred_values = tdesc.pred_values or {}
+	tdesc.label_values = tdesc.label_values or {}
 
 	tdesc.current_sign = tdesc.current_sign or 0.5
 
@@ -841,13 +835,28 @@ function Class:performTrainSession(opt, tdesc)
 
 		--  Move to the nex iteration each time:
 		tdesc.iteration = tdesc.iteration + 1 
-		local loss, sign = self:evaluate(opt, tdesc)
+		local loss, pred, yval = self:evaluate(opt, tdesc)
+
+    self:debug("Prediction: ", pred, ", real value: ",yval)
+
+    table.insert(tdesc.evalidx_values,i)
+    table.insert(tdesc.pred_values,pred)
+    table.insert(tdesc.label_values,yval)
+
+    -- We also check if we have the proper sign for the prediction:
+    local goodSign = 0
+
+    if opt.num_classes == 1 and ((pred-0.5) * (yval-0.5) > 0.0) then
+      goodSign = 1
+    elseif opt.num_classes > 1 and (pred - opt.num_classes/2 - 0.5) * (yval - opt.num_classes - 0.5) > 0.0 then
+      goodSign = 1 
+    end
 
 		tdesc.current_loss = tdesc.current_loss and (tdesc.current_loss * (1.0 - alpha) + loss * alpha) or loss
 		table.insert(tdesc.eval_losses,tdesc.current_loss)
 
     if opt.num_classes == 1 then
-  		tdesc.current_sign = (tdesc.current_sign * (1.0 - alpha) + sign * alpha)
+  		tdesc.current_sign = (tdesc.current_sign * (1.0 - alpha) + goodSign * alpha)
     end
 
     table.insert(tdesc.correct_signs, tdesc.current_sign)
@@ -863,6 +872,30 @@ function Class:writeArray(filename,array)
   local file = io.open(filename,"w")
   for _,v in ipairs(array) do
     file:write(v.."\n")
+  end
+  file:close()
+end
+
+--[[
+Function: writeArrays
+
+Method used to write multiple arrays to file
+]]
+function Class:writeArrays(filename,arrays,headers)
+  local file = io.open(filename,"w")
+  if headers then
+    file:write(table.concat(headers,", ") .."\n")
+  end
+
+  local narr = #arrays
+  local len = #arrays[1]
+  for i=1,len do
+    local tt = {}
+    for j=1,narr do
+      table.insert(tt,arrays[j][i])
+    end
+
+    file:write(table.concat(tt,", ") .."\n")
   end
   file:close()
 end
