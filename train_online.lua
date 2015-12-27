@@ -41,8 +41,8 @@ cmd:text('Options')
 cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
 
 -- model params
-cmd:option('-rnn_size', 256, 'size of LSTM internal state')
-cmd:option('-num_layers', 3, 'number of layers in the LSTM')
+cmd:option('-rnn_size', 128, 'size of LSTM internal state')
+cmd:option('-num_layers', 2, 'number of layers in the LSTM')
 cmd:option('-model', 'lstm', 'lstm,gru or rnn')
 
 -- Base setup options:
@@ -50,7 +50,7 @@ cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-gpuid',0,'which gpu to use. -1 = use CPU')
 cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
-cmd:option('-seq_length',100,'number of timesteps to unroll for')
+cmd:option('-seq_length',30,'number of timesteps to unroll for')
 
 cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
