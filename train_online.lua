@@ -56,7 +56,7 @@ cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
 cmd:option('-train_size',2000,'Number of steps used for each training session')
 cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
-cmd:option('-max_sessions',20,'Max number of training/eval sessions to perform')
+cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
 cmd:option('-print_every',1,'how many steps/minibatches between printing out the loss')
 
 cmd:option('-learning_rate',2e-3,'learning rate')
