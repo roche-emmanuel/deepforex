@@ -69,6 +69,8 @@ cmd:option('-initial_max_epochs',3.0,'number of full passes through the training
 cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings when using GPU. Might make code bit slower but reports accurate timings.')
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
+cmd:option('-suffix','vxx','suffix to append to all written files')
+
 
 cmd:text()
 
@@ -155,6 +157,8 @@ local timer = torch.Timer()
 -- keep a backup of the max epochs:
 local max_epochs = opt.max_epochs
 
+local suffix = opt.suffix
+
 for i=1,nsessions do
   log:debug("Performing session ",i,"...")
 
@@ -169,11 +173,11 @@ for i=1,nsessions do
   tdesc.train_offset = tdesc.train_offset + opt.eval_size
 
   -- Now we should write the result arrays:
-  utils:writeArrays("eval_results.csv",{tdesc.evalidx_values,tdesc.pred_values,tdesc.label_values},{"eval_index","prediction","label"})
+  utils:writeArrays("misc/eval_results_" .. suffix .. ".csv",{tdesc.evalidx_values,tdesc.pred_values,tdesc.label_values},{"eval_index","prediction","label"})
 
-  utils:writeArray("train_losses.csv", tdesc.train_losses)
-  utils:writeArray("eval_losses.csv", tdesc.eval_losses)
-  utils:writeArray("correct_signs.csv", tdesc.correct_signs)
+  utils:writeArray("misc/train_losses_" .. suffix .. ".csv", tdesc.train_losses)
+  utils:writeArray("misc/eval_losses_" .. suffix .. ".csv", tdesc.eval_losses)
+  utils:writeArray("misc/correct_signs_" .. suffix .. ".csv", tdesc.correct_signs)
 end
 
 print("Training done in ",timer:time().real .. ' seconds')
