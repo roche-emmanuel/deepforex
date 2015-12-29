@@ -342,6 +342,31 @@ function Class:computeEMA(vec, period)
 end
 
 --[[
+Function: computeREMA
+
+Method used to compute an REMA feature from a vector
+]]
+function Class:computeREMA(vec, period)
+  -- compute the coeff:
+  -- cf. http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_averages
+  local mult =  (2 / (period + 1))
+
+  -- Prepare the result vector:
+  local res = vec:clone()
+  local ema = 0.0 
+  local prevVal = res:storage()[1]
+
+  res:apply(function(x)
+    local lret = math.log(x/prevVal)
+    prevVal = x
+    ema = (lret-ema)*mult + ema
+    return ema
+  end)
+
+  return res
+end
+
+--[[
 Function: generateLogReturnFeatures
 
 Method used to generate the log returns features from a raw_inputs tensor
@@ -349,6 +374,7 @@ Method used to generate the log returns features from a raw_inputs tensor
 function Class:generateLogReturnFeatures(opt,prices)
   CHECK(opt.ema_base_period,"Invalid ema_base_period")
   CHECK(opt.num_emas,"Invalid num_emas")
+  CHECK(opt.num_remas,"Invalid num_emas")
 
   self:debug("Generating log return features")
 
@@ -362,9 +388,10 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   -- Check if we want the moving averages:
   local numEMAs = opt.num_emas
+  local numREMAs = opt.num_remas
   local baseEMAPeriod = opt.ema_base_period
 
-  local nf = 2+nsym + nsym*numEMAs
+  local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs
 
   -- for each symbol we keep on the close prices,
   -- So we prepare a new tensor of the proper size:
@@ -390,13 +417,21 @@ function Class:generateLogReturnFeatures(opt,prices)
       features[{{},offset+idx}] = self:computeEMA(cprices,period)
       idx = idx + 1 
     end
+
+    -- Also generate the REMAs for each symbol:
+    for j=1,numREMAs do
+      period = baseEMAPeriod*math.pow(2,j-1)
+      self:debug("Adding REMA with period ",period)
+      features[{{},offset+idx}] = self:computeREMA(cprices,period)
+      idx = idx + 1 
+    end
   end
 
   print("Initial features: ", features:narrow(1,1,10))
 
   -- Convert the prices to log returns:
   self:debug("Converting prices to log returns...")
-  local stride = numEMAs + 1
+  local stride = numEMAs + numREMAs + 1
 
   offset = 3
   for i=1,nsym do

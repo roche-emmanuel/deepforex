@@ -71,6 +71,7 @@ cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
 cmd:option('-suffix','vxx','suffix to append to all written files')
 cmd:option('-num_emas',0,'Number of EMA features generated for each symbol')
+cmd:option('-num_remas',0,'Number of return EMA features generated for each symbol')
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 
 
