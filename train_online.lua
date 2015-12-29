@@ -50,7 +50,7 @@ cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-gpuid',0,'which gpu to use. -1 = use CPU')
 cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
-cmd:option('-seq_length',15,'number of timesteps to unroll for')
+cmd:option('-seq_length',25,'number of timesteps to unroll for')
 
 cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
@@ -70,6 +70,8 @@ cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings w
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
 cmd:option('-suffix','vxx','suffix to append to all written files')
+cmd:option('-num_emas',1,'Number of EMA features generated for each symbol')
+cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 
 
 cmd:text()
@@ -159,7 +161,11 @@ local max_epochs = opt.max_epochs
 
 local suffix = opt.suffix
 
+local total_elapsed = 0
 for i=1,nsessions do
+  
+  local itimer = torch.Timer()
+
   log:debug("Performing session ",i,"...")
 
   opt.max_epochs = i==1 and opt.initial_max_epochs or max_epochs
@@ -178,6 +184,21 @@ for i=1,nsessions do
   utils:writeArray("misc/train_losses_" .. suffix .. ".csv", tdesc.train_losses)
   utils:writeArray("misc/eval_losses_" .. suffix .. ".csv", tdesc.eval_losses)
   utils:writeArray("misc/correct_signs_" .. suffix .. ".csv", tdesc.correct_signs)
+
+  -- Also correct the number of epochs from the first iteration if applicable:
+  local elapsed = timer:time().real * max_epochs/opt.max_epochs
+
+  total_elapsed = total_elapsed + elapsed
+  local meantime = total_elapsed/i
+
+  -- Check how many steps are left:
+  local left = (nsessions - i)*meantime
+  local hours = math.floor(left/3600)
+  left = left - hours * 3600
+  local mins = math.floor(left/60)
+  left = left - mins * 60
+  local secs = math.ceil(left)
+  log:debug(("Estimated time left to completion: %02d:%02d:%02d"):format(hours,mins,secs))
 end
 
 print("Training done in ",timer:time().real .. ' seconds')

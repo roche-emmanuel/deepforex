@@ -310,8 +310,35 @@ function Class:normalizeTimes(features)
   local daylen = 24*60
   local weeklen = 5*daylen
 
-  features[{{},1}] = (features[{{},1}]/weeklen - 0.5)*2.0
-  features[{{},2}] = (features[{{},2}]/daylen - 0.5)*2.0  
+  -- features[{{},1}] = (features[{{},1}]/weeklen - 0.5)*2.0
+  -- features[{{},2}] = (features[{{},2}]/daylen - 0.5)*2.0  
+
+  -- use the range [0,1]
+  features[{{},1}] = features[{{},1}]/weeklen
+  features[{{},2}] = features[{{},2}]/daylen
+end
+
+
+--[[
+Function: computeEMA
+
+Method used to compute an EMA feature from a vector
+]]
+function Class:computeEMA(vec, period)
+  -- compute the coeff:
+  -- cf. http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_averages
+  local mult =  (2 / (period + 1))
+
+  -- Prepare the result vector:
+  local res = vec:clone()
+  local ema = res:storage()[1]
+
+  res:apply(function(x)
+    ema = (x-ema)*mult + ema
+    return ema
+  end)
+
+  return res
 end
 
 --[[
@@ -320,6 +347,9 @@ Function: generateLogReturnFeatures
 Method used to generate the log returns features from a raw_inputs tensor
 ]]
 function Class:generateLogReturnFeatures(opt,prices)
+  CHECK(opt.ema_base_period,"Invalid ema_base_period")
+  CHECK(opt.num_emas,"Invalid num_emas")
+
   self:debug("Generating log return features")
 
   -- Retrive the number of symbols:
@@ -330,9 +360,15 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- retrive the raw number of samples:
   local nrows = prices:size(1)
 
+  -- Check if we want the moving averages:
+  local numEMAs = opt.num_emas
+  local baseEMAPeriod = opt.ema_base_period
+
+  local nf = 2+nsym + nsym*numEMAs
+
   -- for each symbol we keep on the close prices,
   -- So we prepare a new tensor of the proper size:
-  local features = torch.Tensor(nrows,2+nsym)
+  local features = torch.Tensor(nrows,nf)
 
   -- populate this new tensor:
   -- copy the week and day times:
@@ -340,24 +376,40 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   -- copy the close prices:
   local offset = 2
+  local idx = 1
+  local period
   for i=1,nsym do
-    features[{{},offset+i}] = prices[{{},offset+4*i}]
+    local cprices = prices[{{},offset+4*i}]
+    features[{{},offset+idx}] = cprices
+    idx = idx+1
+
+    -- Also generate the EMAs for each symbol:
+    for j=1,numEMAs do
+      period = baseEMAPeriod*math.pow(2,j-1)
+      self:debug("Adding EMA with period ",period)
+      features[{{},offset+idx}] = self:computeEMA(cprices,period)
+      idx = idx + 1 
+    end
   end
 
   print("Initial features: ", features:narrow(1,1,10))
 
   -- Convert the prices to log returns:
-  self:debug("Converting prices to returns...")
-  local fprices = features:narrow(2,3,nsym)
+  self:debug("Converting prices to log returns...")
+  local stride = numEMAs + 1
 
-  local rets = torch.cdiv(fprices[{{2,-1},{}}],fprices[{{1,-2},{}}])
-  fprices[{{2,-1},{}}] = rets
-  fprices[{1,{}}] = 1.0
+  offset = 3
+  for i=1,nsym do
+    local fprices = features:narrow(2,offset,1)
+    local rets = torch.cdiv(fprices[{{2,-1},{}}],fprices[{{1,-2},{}}])
+    fprices[{{2,-1},{}}] = rets
+    fprices[{1,{}}] = 1.0
 
-  print("Initial returns: ", features:narrow(1,1,10))
+    -- Also take the log:
+    fprices:log()
 
-  self:debug("Taking log of returns...")
-  fprices:log()
+    offset = offset+stride
+  end
 
   print("Log returns: ", features:narrow(1,1,10))
 
@@ -366,28 +418,38 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   print("Removed the first line: ", features:narrow(1,1,10))
 
-  self:debug("Normalizing log returns...")
+  self:debug("Normalizing features...")
   opt.price_means = opt.price_means or {}
   opt.price_sigmas = opt.price_sigmas or {}
 
-  for i=1,nsym do
+  offset = 2
+  local ncols = nf - 2
+  for i=1,ncols do
     local cprice = features:narrow(2,offset+i,1)
     
     local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
     local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
 
-    self:debug("Symbol ",i," : log return mean=",cmean,", sigma=",csig)
+    self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
 
     opt.price_means[i] = cmean
     opt.price_sigmas[i] = csig
 
     cprice[{}] = (cprice-cmean)/csig
+
+    -- local submat = features:narrow(2,offset,stride)
+    -- for j=1,stride do
+    --   submat[{{},j}] = (submat[{{},j}]-cmean)/csig
+    -- end
+
+    -- offset = offset + stride
   end
 
   print("Normalized log returns: ", features:narrow(1,1,10))
 
-  -- Apply sigmoid transformation:
-  local cprice = features:narrow(2,offset+1,nsym)
+  -- Apply sigmoid transformation to all features (except the times):
+  offset = 3
+  local cprice = features:narrow(2,offset,nf-2)
 
   cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
 
