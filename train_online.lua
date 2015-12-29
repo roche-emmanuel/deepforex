@@ -70,7 +70,7 @@ cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings w
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
 cmd:option('-suffix','vxx','suffix to append to all written files')
-cmd:option('-num_emas',1,'Number of EMA features generated for each symbol')
+cmd:option('-num_emas',0,'Number of EMA features generated for each symbol')
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 
 
@@ -186,7 +186,7 @@ for i=1,nsessions do
   utils:writeArray("misc/correct_signs_" .. suffix .. ".csv", tdesc.correct_signs)
 
   -- Also correct the number of epochs from the first iteration if applicable:
-  local elapsed = timer:time().real * max_epochs/opt.max_epochs
+  local elapsed = itimer:time().real * max_epochs/opt.max_epochs
 
   total_elapsed = total_elapsed + elapsed
   local meantime = total_elapsed/i
