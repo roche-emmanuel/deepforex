@@ -15,6 +15,10 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v14 -train_size 1000"
 # screen -r forex_test
 
+# screen -dmS forex_test bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v15 -num_remas 1"
+# screen -r forex_test
+
 screen -dmS forex_test bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v15 -num_remas 1"
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v16 -num_remas 2"
 screen -r forex_test
