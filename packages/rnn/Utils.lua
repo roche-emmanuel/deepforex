@@ -823,10 +823,15 @@ function Class:trainEval(opt, tdesc, x)
   -- the final sequence time step.
   tdesc.global_init_state = rnn_state[1]
 
-  -- TODO: we should also update the global eval state here
   -- note that we only keep the latest state from the latest batch because this is where
   -- we will start the evaluation from:
-  tdesc.global_eval_state = rnn_state[#rnn_state][bsize]
+  -- local src = rnn_state[#rnn_state]
+  -- also note that we start from the state 1 for this global state too as we will
+  -- take the first (seq_len - 1) element for the first sequence from the training set.
+  local src = rnn_state[1]
+  for k,tens in ipairs(src) do
+    tdesc.global_eval_state[k] = tens[bsize]
+  end
 
   -- tdesc.global_init_state = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
   -- self._grad_params:div(opt.seq_length) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
@@ -1052,7 +1057,10 @@ function Class:performTrainSession(opt, tdesc)
 	local alpha = opt.ema_adaptation
 
   -- Start the evaluation just after the train samples:
-  tdesc.iteration = opt.train_size
+  -- note that the first (seq_len-1) observations are taken from the
+  -- training set, so we have to account for this offset:
+  -- Additionally note that the +1 is done in the loop below directly:
+  tdesc.iteration = opt.train_size - opt.seq_length
 
 	-- Now that we are done with the training part we should evaluate the network predictions:
 	for i=1,opt.eval_size do
