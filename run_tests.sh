@@ -39,6 +39,10 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v19 -num_remas 1 -optim cg"
 # screen -r forex_test
 
-screen -dmS forex_v20 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v20 -num_remas 1 -batch_size 70 -max_epochs 10 -print_every 1"
-screen -r forex_v20
+# screen -dmS forex_v20 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v20 -num_remas 1 -batch_size 80 -max_epochs 15 -initial_max_epochs 50"
+# screen -r forex_v20
+
+screen -dmS forex_v21 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v21 -num_remas 1 -batch_size 80 -max_epochs 15 -initial_max_epochs 50"
+screen -r forex_v21

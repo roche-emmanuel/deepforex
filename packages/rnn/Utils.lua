@@ -823,7 +823,10 @@ function Class:trainEval(opt, tdesc, x)
   -- the final sequence time step.
   tdesc.global_init_state = rnn_state[1]
 
-  -- TODO: we should also update the global eval state here!
+  -- TODO: we should also update the global eval state here
+  -- note that we only keep the latest state from the latest batch because this is where
+  -- we will start the evaluation from:
+  tdesc.global_eval_state = rnn_state[#rnn_state][bsize]
 
   -- tdesc.global_init_state = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
   -- self._grad_params:div(opt.seq_length) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
@@ -843,8 +846,8 @@ function Class:prepareMiniBatchFeatures(opt, tdesc)
   -- starting from train_offset index, so we can narrow this down:
   self:debug("Preparing Mini batch features/labels...")
   local nrows = opt.train_size
-  self:debug("Number of rows: ", nrows)
-  self:debug("Available rows: ",tdesc.raw_features:size(1))
+  -- self:debug("Number of rows: ", nrows)
+  -- self:debug("Available rows: ",tdesc.raw_features:size(1))
 
   local features = tdesc.raw_features:narrow(1,tdesc.train_offset+1, nrows)
   local labels = tdesc.raw_labels:narrow(1,tdesc.train_offset+1, nrows)
@@ -892,8 +895,6 @@ function Class:prepareMiniBatchFeatures(opt, tdesc)
     offset = offset + 1    
   end
 
-  tdesc.features = prepro(opt,tdesc.raw_features:clone())
-  tdesc.labels = prepro(opt,tdesc.raw_labels:clone())
   tdesc.x_batches = x_batches
   tdesc.y_batches = y_batches
   self:debug("Done preparing Mini batch features/labels.")
@@ -944,11 +945,14 @@ function Class:performTrainSession(opt, tdesc)
     -- If we use minibatch, then we also need to setup the features/labels 
     -- appropriately:
     self:prepareMiniBatchFeatures(opt,tdesc)
-  else
-    -- Simply use the raw_features/labels as features and labels:
-    tdesc.features = prepro(opt,tdesc.raw_features)
-    tdesc.labels = prepro(opt,tdesc.raw_labels)
   end
+
+  -- Upload the raw features/labels if needed:
+  -- but we keep a CPU version untouched as we might need it
+  -- to generate the subsequent x/y batches.
+  tdesc.features = prepro(opt,tdesc.raw_features:clone())
+  tdesc.labels = prepro(opt,tdesc.raw_labels:clone())
+
   tdesc.ntrain_per_epoch = ntrain_by_epoch
 
 	local iterations = opt.max_epochs * ntrain_by_epoch
@@ -1046,6 +1050,9 @@ function Class:performTrainSession(opt, tdesc)
 	tdesc.current_sign = tdesc.current_sign or 0.5
 
 	local alpha = opt.ema_adaptation
+
+  -- Start the evaluation just after the train samples:
+  tdesc.iteration = opt.train_size
 
 	-- Now that we are done with the training part we should evaluate the network predictions:
 	for i=1,opt.eval_size do
