@@ -381,7 +381,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- Retrive the number of symbols:
   local nsym = self:getNumSymbols(prices)
 
-  print("Initial prices: ", prices:narrow(1,1,10))
+  -- print("Initial prices: ", prices:narrow(1,1,10))
 
   -- retrive the raw number of samples:
   local nrows = prices:size(1)
@@ -427,7 +427,7 @@ function Class:generateLogReturnFeatures(opt,prices)
     end
   end
 
-  print("Initial features: ", features:narrow(1,1,10))
+  -- print("Initial features: ", features:narrow(1,1,10))
 
   -- Convert the prices to log returns:
   self:debug("Converting prices to log returns...")
@@ -446,12 +446,12 @@ function Class:generateLogReturnFeatures(opt,prices)
     offset = offset+stride
   end
 
-  print("Log returns: ", features:narrow(1,1,10))
+  -- print("Log returns: ", features:narrow(1,1,10))
 
   -- remove the first line of the features:
   features = features:sub(2,-1)
 
-  print("Removed the first line: ", features:narrow(1,1,10))
+  -- print("Removed the first line: ", features:narrow(1,1,10))
 
   self:debug("Normalizing features...")
   opt.price_means = opt.price_means or {}
@@ -480,7 +480,7 @@ function Class:generateLogReturnFeatures(opt,prices)
     -- offset = offset + stride
   end
 
-  print("Normalized log returns: ", features:narrow(1,1,10))
+  -- print("Normalized log returns: ", features:narrow(1,1,10))
 
   -- Apply sigmoid transformation to all features (except the times):
   offset = 3
@@ -488,11 +488,11 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
 
-  print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
+  -- print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
 
   -- Now apply normalization:
   self:normalizeTimes(features)
-  print("Normalized times: ", features:narrow(1,1,10))
+  -- print("Normalized times: ", features:narrow(1,1,10))
 
   return features
 end
@@ -537,16 +537,15 @@ function Class:generateLogReturnLabels(opt, features)
   --  Should remove the last row from the features:
   features = features:sub(1,-2)
 
-  print("Generated log return labels: ", labels:narrow(1,1,10))
+  -- print("Generated log return labels: ", labels:narrow(1,1,10))
 
   if opt.num_classes > 1 then
     labels = self:generateClasses(labels,0,1,opt.num_classes)
   end
 
-  print("Labels classes: ", labels:narrow(1,1,10))
-  print("Final features: ", features:narrow(1,1,10))
-
-
+  -- print("Labels classes: ", labels:narrow(1,1,10))
+  -- print("Final features: ", features:narrow(1,1,10))
+  
   return prepro(opt,features), prepro(opt,labels)
 end
 
@@ -816,6 +815,68 @@ function Class:trainEval(opt, tdesc, x)
 end
 
 --[[
+Function: prepareMiniBatchFeatures
+
+Method used to prepare the mini batch features and labels
+for a given training session
+]]
+function Class:prepareMiniBatchFeatures(opt, tdesc)
+  -- So, we know that we are only going to use train_size rows,
+  -- starting from train_offset index, so we can narrow this down:
+  self:debug("Preparing Mini batch features/labels...")
+  local nrows = opt.train_size
+  local features = tdesc.raw_features:narrow(1,tdesc.train_offset, nrows)
+  local labels = tdesc.raw_labels:narrow(1,tdesc.train_offset, nrows)
+
+  -- Complete length of the sequence in each batch:
+  local seq_len = opt.seq_length
+
+  local nbatches = opt.seq_length * opt.batch_num_seqs
+  local bsize = opt.batch_size
+  local nf = tdesc.raw_features:size(2)
+
+  local x_batches = {}
+  local y_batches = {}
+  
+  local stride = opt.seq_length * opt.batch_num_seqs
+  
+  local offset = 0
+  local idx;
+
+  for i=1,nbatches do
+    local xbatch = torch.Tensor(seq_len,bsize,nf)
+    local ybatch = torch.Tensor(seq_len,bsize)
+
+    for t=1,seq_len do
+      -- build a tensor corresponding to the sequence element t
+      -- eg. we present all the rows of features in batch that arrive
+      -- at time t in the sequence:
+      local xmat = torch.Tensor(bsize,nf)
+      local ymat = torch.Tensor(bsize)
+
+      -- fill the data for this tensor:
+      for i=1,bsize do
+        idx = offset+(i-1)*stride+t
+        xmat[{i,{}}] = features[{idx,{}}]
+        ymat[i] = labels[idx]
+      end
+
+      xbatch[t] = xmat
+      ybatch[t] = ymat
+    end
+
+    table.insert(x_batches,prepro(opt,xbatch))
+    table.insert(y_batches,prepro(opt,ybatch))
+    
+    offset = offset + 1    
+  end
+
+  tdesc.features = x_batches
+  tdesc.labels = y_batches
+  self:debug("Done preparing Mini batch features/labels.")
+end
+
+--[[
 Function: performTrainSession
 
 Method used to perform a train session
@@ -830,20 +891,50 @@ function Class:performTrainSession(opt, tdesc)
 	CHECK(opt.learning_rate_decay,"Invalid learning_rate_decay")
 	CHECK(opt.learning_rate_decay_after,"Invalid learning_rate_decay_after")
   CHECK(opt.print_every,"Invalid print_every")
-	CHECK(opt.ema_adaptation,"Invalid ema_adaptation")
+  CHECK(opt.ema_adaptation,"Invalid ema_adaptation")
+  CHECK(opt.optim,"Invalid optim")
+  CHECK(opt.batch_size,"Invalid batch_size")
+	CHECK(opt.batch_num_seqs,"Invalid batch_num_seqs")
 
 	-- start optimization here
 	tdesc.train_losses = tdesc.train_losses or {}
 	-- local val_losses = {}
 
-	local optim_state = {learningRate = opt.learning_rate, alpha = opt.decay_rate}
+	local optim_state = {}
+  -- rmsprop state:
+  optim_state.learningRate = opt.learning_rate
+  optim_state.alpha = opt.decay_rate
+  
+  -- conjugate gradient state:
+  optim_state.maxEval = 6
+  optim_state.maxIter = 2
 
 	-- The number of iteration is the number of times we can extract a sequence of seq_length
 	-- in the train_size, numtiplied by the number of epochs we allow:
-
 	local ntrain_by_epoch = (opt.train_size - opt.seq_length + 1)
+
+  -- Note that, if the batch_size is specified, then the number of iterations in each
+  -- epoch is given by opt.batch_num_seqs*opt.seq_length:
+  if opt.batch_size > 0 then
+    ntrain_by_epoch = opt.batch_num_seqs*opt.seq_length
+
+    -- If we use minibatch, then we also need to setup the features/labels 
+    -- appropriately:
+    self:prepareMiniBatchFeatures(opt,tdesc)
+  else
+    -- Simply use the raw_features/labels as features and labels:
+    tdesc.features = tdesc.raw_features
+    tdesc.labels = tdesc.raw_labels
+  end
+
 	local iterations = opt.max_epochs * ntrain_by_epoch
 	local loss0 = nil
+
+  local optimfunc = optim.rmsprop
+  -- Change the optimization function if needed:
+  if opt.optim == 'cg' then
+    optimfunc = optim.cg
+  end
 
 	local feval = function(x)
 		return self:trainEval(opt, tdesc, x)
@@ -855,7 +946,7 @@ function Class:performTrainSession(opt, tdesc)
 
 	  local timer = torch.Timer()
 
-	  local _, loss = optim.rmsprop(feval, tdesc.params, optim_state)
+	  local _, loss = optimfunc(feval, tdesc.params, optim_state)
 	  if opt.accurate_gpu_timing == 1 and opt.gpuid >= 0 then
 	    --[[
 	    Note on timing: The reported time can be off because the GPU is invoked async. If one

@@ -27,10 +27,14 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v16b -num_remas 2 -rnn_size 200"
 # screen -r forex_test
 
-screen -dmS forex_v17 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v17 -num_remas 1 -seed 124"
+# screen -dmS forex_v17 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v17 -num_remas 1 -seed 124"
 # screen -r forex_v17
 
-screen -dmS forex_v18 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v18 -num_remas 1 -eval_size 50 -max_sessions 400 -seed 125"
-screen -r forex_v18
+# screen -dmS forex_v18 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v18 -num_remas 1 -eval_size 50 -max_sessions 400 -seed 125"
+# screen -r forex_v18
+
+screen -dmS forex_test bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v19 -num_remas 1 -optim cg"
+screen -r forex_test

@@ -54,6 +54,8 @@ cmd:option('-seq_length',25,'number of timesteps to unroll for')
 
 cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
+cmd:option('-batch_size',-1,'Number of sequences to train on in parallel or -1 if we use only sequential training')
+cmd:option('-batch_num_seqs',1,'Number of consecutive sequences in each batch slice')
 cmd:option('-train_size',2000,'Number of steps used for each training session')
 cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
 cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
@@ -73,6 +75,8 @@ cmd:option('-suffix','vxx','suffix to append to all written files')
 cmd:option('-num_emas',0,'Number of EMA features generated for each symbol')
 cmd:option('-num_remas',0,'Number of return EMA features generated for each symbol')
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
+
+cmd:option('-optim','rmsprop','Optimization algorithm')
 
 
 cmd:text()
@@ -108,7 +112,15 @@ CHECK(features:size(1)==labels:size(1),"Mismatch in features/labels sizes")
 -- then train again, then eval again etc... right now we can already compute what should
 -- be the appropriate size of the features/labels to use:
 local nsamples = features:size(1)
+
+-- Note that: if we use minibatch training then we must adapt the training size:
+if opt.batch_size > 0 then
+  opt.train_size = opt.batch_size*opt.batch_num_seqs*opt.seq_length + (opt.batch_num_seqs*opt.seq_length - 1)
+  log:debug("Using minibatch, updated training size to: ", opt.train_size)
+end
+
 local nsessions = math.floor((nsamples - opt.train_size)/opt.eval_size)
+
 log:debug("Can perform at most ", nsessions, " training/eval sessions")
 nsamples = opt.train_size + nsessions*opt.eval_size
 
@@ -147,8 +159,8 @@ local clones = utils:generateClones(opt, proto)
 nsessions = opt.max_sessions < 0 and nsessions or opt.max_sessions
 
 local tdesc = {}
-tdesc.features = features
-tdesc.labels = labels
+tdesc.raw_features = features
+tdesc.raw_labels = labels
 tdesc.params = params
 tdesc.grad_params = grad_params
 tdesc.init_state = init_state
