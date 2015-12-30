@@ -120,8 +120,12 @@ if opt.batch_size > 0 then
 end
 
 local nsessions = math.floor((nsamples - opt.train_size)/opt.eval_size)
-
 log:debug("Can perform at most ", nsessions, " training/eval sessions")
+
+-- We can now enter the train/eval loop on the features/labels:
+-- we should train as long as
+nsessions = opt.max_sessions < 0 and nsessions or opt.max_sessions
+
 nsamples = opt.train_size + nsessions*opt.eval_size
 
 -- we keep only the needed features/labels:
@@ -140,12 +144,13 @@ local proto = utils:createPrototype(opt)
 
 -- Create the init state:
 -- Note that the batch_size will be limited to one in this implementation:
-opt.batch_size = 1
 local init_state = utils:createInitState(opt)
 
 -- We also keep a reference on a global init state table:
 local global_init_state = utils:cloneList(init_state)
 
+-- also prepare a dedicated evaluation state:
+local global_eval_state = utils:createInitState(opt,1)
 
 -- Perform parameter initialization:
 local params, grad_params = utils:initParameters(opt, proto)
@@ -153,10 +158,6 @@ local params, grad_params = utils:initParameters(opt, proto)
 
 -- Generate the clones from the prototype:
 local clones = utils:generateClones(opt, proto)
-
--- We can now enter the train/eval loop on the features/labels:
--- we should train as long as
-nsessions = opt.max_sessions < 0 and nsessions or opt.max_sessions
 
 local tdesc = {}
 tdesc.raw_features = features
@@ -185,6 +186,7 @@ for i=1,nsessions do
 
   -- No init state influence between training sessions:
   tdesc.global_init_state = utils:cloneList(global_init_state,true)
+  tdesc.global_eval_state = utils:cloneList(global_eval_state,true)
 
   utils:performTrainSession(opt, tdesc)
   

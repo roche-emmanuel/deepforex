@@ -545,8 +545,8 @@ function Class:generateLogReturnLabels(opt, features)
 
   -- print("Labels classes: ", labels:narrow(1,1,10))
   -- print("Final features: ", features:narrow(1,1,10))
-  
-  return prepro(opt,features), prepro(opt,labels)
+
+  return features, labels
 end
 
 --[[
@@ -581,13 +581,15 @@ Function: createInitState
 Create the init state that will be used to store the current
 initial state of the RNN
 ]]
-function Class:createInitState(opt)
+function Class:createInitState(opt, bsize)
 	self:debug("Creating init state.")
 
 	-- the initial state of the cell/hidden states
+  bsize = bsize or (opt.batch_size < 0 and 1 or opt.batch_size)
+
 	local init_state = {}
 	for L=1,opt.num_layers do
-	  local h_init = torch.zeros(opt.batch_size, opt.rnn_size)
+	  local h_init = torch.zeros(bsize, opt.rnn_size)
 	  if opt.gpuid >=0 and opt.opencl == 0 then h_init = h_init:cuda() end
 	  if opt.gpuid >=0 and opt.opencl == 1 then h_init = h_init:cl() end
 	  table.insert(init_state, h_init:clone())
@@ -682,7 +684,7 @@ function Class:evaluate(opt, tdesc)
   local y = tdesc.labels:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
 
   ------------------- forward pass -------------------
-  local rnn_state = {[0] = tdesc.global_init_state}
+  local rnn_state = {[0] = tdesc.global_eval_state}
   -- local predictions = {}           -- softmax outputs
   local loss = 0
   local pred;
@@ -724,7 +726,7 @@ function Class:evaluate(opt, tdesc)
   -- loss = loss / opt.seq_length
 
   -- Update the global init state:
-	tdesc.global_init_state = rnn_state[1]
+	tdesc.global_eval_state = rnn_state[1]
 
   pred = pred:storage()[1]
   local yval = y[{len,1}]
@@ -745,8 +747,16 @@ function Class:trainEval(opt, tdesc, x)
   tdesc.grad_params:zero()
 
   ------------------ get minibatch -------------------
-  local x = tdesc.features:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
-  local y = tdesc.labels:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+  local idx = tdesc.iteration
+
+  local x,y;
+  if opt.batch_size > 0 then
+    x = tdesc.x_batches[idx]
+    y = tdesc.y_batches[idx]
+  else
+    x = tdesc.features:narrow(1,tdesc.train_offset+idx, opt.seq_length)
+    y = tdesc.labels:narrow(1,tdesc.train_offset+idx, opt.seq_length)
+  end
 
   ------------------- forward pass -------------------
   local rnn_state = {[0] = tdesc.global_init_state}
@@ -756,10 +766,13 @@ function Class:trainEval(opt, tdesc, x)
   -- observing dimensions of seq_length x batch_size below:
   -- print("x dimensions: ",x:size(1),"x",x:size(2))
   -- print("y dimensions: ",y:size(1),"x",y:size(2))
+  local bsize = opt.batch_size > 0 and opt.batch_size or 1
 
   for t=1,opt.seq_length do
     tdesc.clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
-    local lst = tdesc.clones.rnn[t]:forward{x:narrow(1,t,1), unpack(rnn_state[t-1])}
+    local input = bsize == 1 and x:narrow(1,t,1) or x[t]
+
+    local lst = tdesc.clones.rnn[t]:forward{input, unpack(rnn_state[t-1])}
 
     -- print("x[".. t.."]:", x[t])
     -- line below will always return #lst=5 (with 2 layers)
@@ -789,7 +802,10 @@ function Class:trainEval(opt, tdesc, x)
     -- backprop through loss, and softmax/linear
     local doutput_t = tdesc.clones.criterion[t]:backward(predictions[t], y[t])
     table.insert(drnn_state[t], doutput_t)
-    local dlst = tdesc.clones.rnn[t]:backward({x[t], unpack(rnn_state[t-1])}, drnn_state[t])
+    
+    local input = bsize == 1 and x:narrow(1,t,1) or x[t]
+
+    local dlst = tdesc.clones.rnn[t]:backward({input, unpack(rnn_state[t-1])}, drnn_state[t])
     drnn_state[t-1] = {}
     for k,v in pairs(dlst) do
       if k > 1 then -- k == 1 is gradient on x, which we dont need
@@ -807,11 +823,13 @@ function Class:trainEval(opt, tdesc, x)
   -- the final sequence time step.
   tdesc.global_init_state = rnn_state[1]
 
+  -- TODO: we should also update the global eval state here!
+
   -- tdesc.global_init_state = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
   -- self._grad_params:div(opt.seq_length) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
   -- clip gradient element-wise
   tdesc.grad_params:clamp(-opt.grad_clip, opt.grad_clip)
-  return loss, tdesc.grad_params	
+  return loss, tdesc.grad_params
 end
 
 --[[
@@ -825,8 +843,11 @@ function Class:prepareMiniBatchFeatures(opt, tdesc)
   -- starting from train_offset index, so we can narrow this down:
   self:debug("Preparing Mini batch features/labels...")
   local nrows = opt.train_size
-  local features = tdesc.raw_features:narrow(1,tdesc.train_offset, nrows)
-  local labels = tdesc.raw_labels:narrow(1,tdesc.train_offset, nrows)
+  self:debug("Number of rows: ", nrows)
+  self:debug("Available rows: ",tdesc.raw_features:size(1))
+
+  local features = tdesc.raw_features:narrow(1,tdesc.train_offset+1, nrows)
+  local labels = tdesc.raw_labels:narrow(1,tdesc.train_offset+1, nrows)
 
   -- Complete length of the sequence in each batch:
   local seq_len = opt.seq_length
@@ -871,8 +892,10 @@ function Class:prepareMiniBatchFeatures(opt, tdesc)
     offset = offset + 1    
   end
 
-  tdesc.features = x_batches
-  tdesc.labels = y_batches
+  tdesc.features = prepro(opt,tdesc.raw_features:clone())
+  tdesc.labels = prepro(opt,tdesc.raw_labels:clone())
+  tdesc.x_batches = x_batches
+  tdesc.y_batches = y_batches
   self:debug("Done preparing Mini batch features/labels.")
 end
 
@@ -923,9 +946,10 @@ function Class:performTrainSession(opt, tdesc)
     self:prepareMiniBatchFeatures(opt,tdesc)
   else
     -- Simply use the raw_features/labels as features and labels:
-    tdesc.features = tdesc.raw_features
-    tdesc.labels = tdesc.raw_labels
+    tdesc.features = prepro(opt,tdesc.raw_features)
+    tdesc.labels = prepro(opt,tdesc.raw_labels)
   end
+  tdesc.ntrain_per_epoch = ntrain_by_epoch
 
 	local iterations = opt.max_epochs * ntrain_by_epoch
 	local loss0 = nil
@@ -940,9 +964,14 @@ function Class:performTrainSession(opt, tdesc)
 		return self:trainEval(opt, tdesc, x)
 	end
 
+  tdesc.iteration = 0
 	for i = 1, iterations do
 	  local epoch = i / ntrain_by_epoch
-	  tdesc.iteration = i
+	  
+    tdesc.iteration = tdesc.iteration + 1
+    if tdesc.iteration > tdesc.ntrain_per_epoch then
+      tdesc.iteration = 1
+    end
 
 	  local timer = torch.Timer()
 
