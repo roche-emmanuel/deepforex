@@ -2,7 +2,7 @@ library(dplyr)
 library(TTR)
 
 # Method used to evaluate a single prediction file:
-evaluate_single_prediction <- function(path, nsteps = 50)
+evaluate_single_prediction <- function(path, nsteps = 50, ema = NULL)
 {
   levels <- seq(from=0.0, to=0.9, by=0.1)
   evals <- data.frame(siglevel=levels)
@@ -17,7 +17,16 @@ evaluate_single_prediction <- function(path, nsteps = 50)
     data <- read.csv(path,header=T)
     
     # from the predictions and the labels we must substract 0.5 and mult by 2:
-    data2 <- mutate(data, pred = (prediction-0.5)*2, lbl = (label-0.5)*2)
+    data2 <- NULL
+    if (is.null(ema))
+    {
+      data2 <- mutate(data, pred = (prediction-0.5)*2, lbl = (label-0.5)*2)
+    }
+    else
+    {
+      # Apply EMA on the predictions:
+      data2 <- mutate(data, pred = EMA((prediction-0.5)*2,n=ema), lbl = (label-0.5)*2)
+    }
     
     # only keep the data under the step given by nsteps
     data2 <- filter(data2, eval_index <= nsteps)
