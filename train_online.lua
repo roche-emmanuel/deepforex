@@ -52,7 +52,7 @@ cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
 cmd:option('-seq_length',25,'number of timesteps to unroll for')
 
-cmd:option('-forcast_symbol',1.0,'Symbol that should be forcasted.')
+cmd:option('-forcast_index',1,'Index of the feature that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
 cmd:option('-batch_size',-1,'Number of sequences to train on in parallel or -1 if we use only sequential training')
 cmd:option('-batch_num_seqs',1,'Number of consecutive sequences in each batch slice')

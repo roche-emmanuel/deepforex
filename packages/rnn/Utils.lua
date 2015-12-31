@@ -573,17 +573,17 @@ Method used to generate the labels from the features
 ]]
 function Class:generateLogReturnLabels(opt, features)
   self:debug("Generating log return features")
-  CHECK(opt.forcast_symbol,"Invalid forcast_symbol")
+  CHECK(opt.forcast_index,"Invalid forcast_index")
   CHECK(opt.num_classes,"Invalid num_classes")
 
   -- Now generate the desired labels:
   -- The label is just the next value of the sigmoid transformed log returns
   -- labels will be taken from a given symbol index:
 
-  self:debug("Forcast symbol index: ", opt.forcast_symbol)
+  self:debug("Forcast symbol index: ", opt.forcast_index)
 
   local offset = 2
-  local idx = offset+opt.forcast_symbol
+  local idx = offset+opt.forcast_index
   local labels = features:sub(2,-1,idx,idx)
 
   --  Should remove the last row from the features:
