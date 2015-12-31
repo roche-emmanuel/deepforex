@@ -1,4 +1,5 @@
 library(dplyr)
+library(TTR)
 
 # Method used to evaluate a single prediction file:
 evaluate_single_prediction <- function(path, nsteps = 50)

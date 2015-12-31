@@ -55,6 +55,14 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v23 -num_remas 1 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -rnn_size 160"
 # screen -r forex_v23
 
-screen -dmS forex_v24 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v24 -num_remas 1 -batch_size 100 -max_epochs 15 -initial_max_epochs 100 -seq_length 50"
-screen -r forex_v24
+# screen -dmS forex_v24 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v24 -num_remas 1 -batch_size 100 -max_epochs 15 -initial_max_epochs 100 -seq_length 50"
+# screen -r forex_v24
+
+# screen -dmS forex_v25 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v25 -num_remas 1 -num_emas 1 -batch_size 100 -max_epochs 15 -initial_max_epochs 100"
+# screen -r forex_v25
+
+screen -dmS forex_v26 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v26 -num_remas 1 -rsi_period 9 -batch_size 100 -max_epochs 15 -initial_max_epochs 100"
+screen -r forex_v26

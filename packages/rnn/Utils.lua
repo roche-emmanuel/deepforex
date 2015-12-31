@@ -367,6 +367,47 @@ function Class:computeREMA(vec, period)
 end
 
 --[[
+Function: computeRSI
+
+Method used to compute an RSI feature from a vector
+The input for this method should be the price vector
+]]
+function Class:computeRSI(vec, period)
+  -- compute the coeff:
+  -- cf. https://fr.wikipedia.org/wiki/Relative_strength_index
+  
+  local mult =  (2 / (period + 1))
+
+  -- Prepare the result vector:
+  local res = vec:clone()
+  local H = 0.001
+  local B = 0.001
+
+  local prevVal = res:storage()[1]
+
+  res:apply(function(x)
+    -- Retrieve the new price:
+    -- if the increment is positive then we update H:
+    if x > prevVal then
+      H = (x-prevVal) * mult + H * (1.0 - mult)
+    end
+
+    -- Otherwise we update B:
+    if x < prevVal then
+      B = (prevVal - x) * mult + B * (1.0 - mult)
+    end
+
+    -- update the previous price value:
+    prevVal = x
+
+    -- compute the RSI (value will be between 0 and 1)
+    return H/(H+B)
+  end)
+
+  return res
+end
+
+--[[
 Function: generateLogReturnFeatures
 
 Method used to generate the log returns features from a raw_inputs tensor
@@ -375,6 +416,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   CHECK(opt.ema_base_period,"Invalid ema_base_period")
   CHECK(opt.num_emas,"Invalid num_emas")
   CHECK(opt.num_remas,"Invalid num_emas")
+  CHECK(opt.rsi_period,"Invalid rsi_period")
 
   self:debug("Generating log return features")
 
@@ -390,8 +432,10 @@ function Class:generateLogReturnFeatures(opt,prices)
   local numEMAs = opt.num_emas
   local numREMAs = opt.num_remas
   local baseEMAPeriod = opt.ema_base_period
+  local rsiPeriod = opt.rsi_period
+  local numRSI = (rsiPeriod>0 and 1 or 0)
 
-  local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs
+  local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs + nsym*numRSI
 
   -- for each symbol we keep on the close prices,
   -- So we prepare a new tensor of the proper size:
@@ -425,13 +469,21 @@ function Class:generateLogReturnFeatures(opt,prices)
       features[{{},offset+idx}] = self:computeREMA(cprices,period)
       idx = idx + 1 
     end
+
+    --  Also generate the RSI for each symbol:
+    if rsiPeriod > 0 then
+      self:debug("Adding RSI with period ",rsiPeriod)
+      features[{{},offset+idx}] = self:computeRSI(cprices,rsiPeriod)
+      idx = idx + 1 
+    end
+
   end
 
   -- print("Initial features: ", features:narrow(1,1,10))
 
   -- Convert the prices to log returns:
   self:debug("Converting prices to log returns...")
-  local stride = numEMAs + numREMAs + 1
+  local stride = numEMAs + numREMAs + numRSI + 1
 
   offset = 3
   for i=1,nsym do
