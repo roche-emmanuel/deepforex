@@ -76,6 +76,18 @@
 
 # we still want to predict USDPJY, but this time we have 5 cols per price, thus
 # forcast_index = 6*5+1 = 31
-screen -dmS forex_v28 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v28 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 31"
-screen -r forex_v28
+# screen -dmS forex_v28 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v28 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 31"
+# screen -r forex_v28
+
+# screen -dmS forex_v29 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1"
+# screen -r forex_v29
+
+screen -dmS forex_v29b bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29b -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 124"
+# screen -r forex_v29b
+
+screen -dmS forex_v29c bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 124"
+screen -r forex_v29c
