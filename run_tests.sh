@@ -89,5 +89,5 @@ screen -dmS forex_v29b bash -c \
 # screen -r forex_v29b
 
 screen -dmS forex_v29c bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 124"
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 125"
 screen -r forex_v29c
