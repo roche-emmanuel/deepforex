@@ -70,6 +70,12 @@
 # here we want to forcast USDPJY log returns
 # inputs are "EURUSD","AUDUSD","GBPUSD","NZDUSD","USDCAD","USDCHF","USDJPY"
 # plus one REMA per price, so the target index should be: 13
-screen -dmS forex_v27 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v27 -num_remas 1 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 13"
-screen -r forex_v27
+# screen -dmS forex_v27 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v27 -num_remas 1 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 13"
+# screen -r forex_v27
+
+# we still want to predict USDPJY, but this time we have 5 cols per price, thus
+# forcast_index = 6*5+1 = 31
+screen -dmS forex_v28 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v28 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 31"
+screen -r forex_v28
