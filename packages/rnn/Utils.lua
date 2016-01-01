@@ -342,6 +342,27 @@ function Class:computeEMA(vec, period)
 end
 
 --[[
+Function: computeLogReturn
+
+Method used to compute a log return of a given price vector 
+with a provided offset
+]]
+function Class:computeLogReturn(vec, offset)
+
+  -- Prepare the result vector:
+  local res = vec:clone()
+
+  local rets = torch.cdiv(vec[{{1+offset,-1},{}}],vec[{{1,-1-offset},{}}])
+  res[{{1,offset},{}}] = 1.0
+  res[{{1+offset,-1},{}}] = rets
+
+  -- Also take the log:
+  res:log()
+
+  return res
+end
+
+--[[
 Function: computeREMA
 
 Method used to compute an REMA feature from a vector
@@ -408,6 +429,23 @@ function Class:computeRSI(vec, period)
 end
 
 --[[
+Function: split
+
+Helper method used to split strings
+]]
+function Class:split(inputstr, sep)
+  if sep == nil then
+    sep = "%s"
+  end
+  local t={} ; i=1
+  for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
+    t[i] = str
+    i = i + 1
+  end
+  return t
+end
+
+--[[
 Function: generateLogReturnFeatures
 
 Method used to generate the log returns features from a raw_inputs tensor
@@ -417,6 +455,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   CHECK(opt.num_emas,"Invalid num_emas")
   CHECK(opt.num_remas,"Invalid num_emas")
   CHECK(opt.rsi_period,"Invalid rsi_period")
+  CHECK(opt.log_return_offsets,"Invalid log_return_offsets")
 
   self:debug("Generating log return features")
 
@@ -434,8 +473,10 @@ function Class:generateLogReturnFeatures(opt,prices)
   local baseEMAPeriod = opt.ema_base_period
   local rsiPeriod = opt.rsi_period
   local numRSI = (rsiPeriod>0 and 1 or 0)
+  local logOffsets = self:split(opt.log_return_offsets)
+  local numLogOffsets = #logOffsets
 
-  local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs + nsym*numRSI
+  local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs + nsym*numRSI + nsym*numLogOffsets
 
   -- for each symbol we keep on the close prices,
   -- So we prepare a new tensor of the proper size:
@@ -448,11 +489,19 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- copy the close prices:
   local offset = 2
   local idx = 1
-  local period
+  local period, loff
   for i=1,nsym do
     local cprices = prices[{{},offset+4*i}]
     features[{{},offset+idx}] = cprices
     idx = idx+1
+
+    -- Also generate the additional log returns for each symbol:
+    for j=1,numLogOffsets do
+      loff = logOffsets[j]
+      self:debug("Adding Log return with offset ",loff)
+      features[{{},offset+idx}] = self:computeLogReturn(cprices,loff)
+      idx = idx + 1 
+    end
 
     -- Also generate the EMAs for each symbol:
     for j=1,numEMAs do
@@ -483,18 +532,11 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   -- Convert the prices to log returns:
   self:debug("Converting prices to log returns...")
-  local stride = numEMAs + numREMAs + numRSI + 1
+  local stride = numEMAs + numREMAs + numRSI + numLogOffsets + 1
 
   offset = 3
   for i=1,nsym do
-    local fprices = features:narrow(2,offset,1)
-    local rets = torch.cdiv(fprices[{{2,-1},{}}],fprices[{{1,-2},{}}])
-    fprices[{{2,-1},{}}] = rets
-    fprices[{1,{}}] = 1.0
-
-    -- Also take the log:
-    fprices:log()
-
+    features[{{},offset}] = self:computeLogReturn(features[{{},offset}],1)
     offset = offset+stride
   end
 

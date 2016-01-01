@@ -76,6 +76,7 @@ cmd:option('-num_emas',0,'Number of EMA features generated for each symbol')
 cmd:option('-num_remas',0,'Number of return EMA features generated for each symbol')
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 cmd:option('-rsi_period',0,'Period to use for RSI of 0 if disabled')
+cmd:option('-log_return_offsets',"",'list of comma separated offset values that should be used to compute additional log return features')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
