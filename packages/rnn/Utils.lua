@@ -356,9 +356,9 @@ Function: normalizeFeature
 
 Method used to normalize a feature vector
 ]]
-function Class:normalizeFeature(cprice)
-  cmean = self._fMeans[self._idx] or cprice:mean(1):storage()[1]
-  csig = self._fDevs[self._idx] or cprice:std(1):storage()[1]
+function Class:normalizeFeature(cprice,cmean,csig)
+  cmean = cmean or self._fMeans[self._idx] or cprice:mean(1):storage()[1]
+  csig = csig or self._fDevs[self._idx] or cprice:std(1):storage()[1]
 
   cprice[{}] = (cprice-cmean)/csig
 
@@ -607,6 +607,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   opt.feature_devs = self._fDevs
 
   -- remove the start offset lines of the features:
+  print("Feature before norm: ",features:narrow(1,1,10))
   features = features:sub(1+self._startOffset,-1)
 
   self:debug("Normalizing features...")
@@ -621,10 +622,12 @@ function Class:generateLogReturnFeatures(opt,prices)
     local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
     local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
 
-    cprice[{}] = (cprice-cmean)/csig
+    -- cprice[{}] = (cprice-cmean)/csig
 
-    -- local cmean, csig = self:normalizeFeature(cprice,cmean,csig)
+    local cmean, csig = self:normalizeFeature(cprice,cmean,csig)
     self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
+
+    self:sigmoid(cprice)
 
     opt.price_means[i] = cmean
     opt.price_sigmas[i] = csig
@@ -633,10 +636,10 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- print("Normalized log returns: ", features:narrow(1,1,10))
 
   -- Apply sigmoid transformation to all features (except the times):
-  offset = 3
-  local cprice = features:narrow(2,offset,nf-2)
+  -- offset = 3
+  -- local cprice = features:narrow(2,offset,nf-2)
 
-  cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
+  -- cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
 
   -- print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
 
