@@ -340,11 +340,11 @@ function Class:computeEMA(vec, period)
     return ema
   end)
 
-  -- -- Normalize the feature:
-  -- self:normalizeFeature(res)
+  -- Normalize the feature:
+  self:normalizeFeature(res)
   
-  -- -- convert to sigmoid:
-  -- self:sigmoid(res)
+  -- convert to sigmoid:
+  self:sigmoid(res)
 
   self:incrementFeatureIndex()
 
@@ -407,11 +407,11 @@ function Class:computeLogReturn(vec, offset)
   -- Also take the log:
   res:log()
 
-  -- -- Normalize the feature:
-  -- self:normalizeFeature(res)
+  -- Normalize the feature:
+  self:normalizeFeature(res)
   
-  -- -- convert to sigmoid:
-  -- self:sigmoid(res)
+  -- convert to sigmoid:
+  self:sigmoid(res)
 
   self:incrementFeatureIndex()
 
@@ -442,11 +442,11 @@ function Class:computeREMA(vec, period)
     return ema
   end)
 
-  -- -- Normalize the feature:
-  -- self:normalizeFeature(res)
+  -- Normalize the feature:
+  self:normalizeFeature(res)
   
-  -- -- convert to sigmoid:
-  -- self:sigmoid(res)
+  -- convert to sigmoid:
+  self:sigmoid(res)
 
   self:incrementFeatureIndex()
 
@@ -493,11 +493,11 @@ function Class:computeRSI(vec, period)
     return H/(H+B)
   end)
 
-  -- -- Normalize the feature:
-  -- self:normalizeFeature(res)
+  -- Normalize the feature:
+  self:normalizeFeature(res)
   
-  -- -- convert to sigmoid:
-  -- self:sigmoid(res)
+  -- convert to sigmoid:
+  self:sigmoid(res)
 
   self:incrementFeatureIndex()
 
@@ -562,7 +562,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- copy the week and day times:
   features[{{},{1,2}}] = prices[{{},{1,2}}]
 
-  self._startOffset = 1
+  self._startOffset = 20
 
   self._fMeans = opt.feature_means or {}
   self._fDevs = opt.feature_devs or {}
@@ -607,31 +607,31 @@ function Class:generateLogReturnFeatures(opt,prices)
   opt.feature_devs = self._fDevs
 
   -- remove the start offset lines of the features:
-  print("Feature before norm: ",features:narrow(1,1,10))
+  -- print("Feature before norm: ",features:narrow(1,1,10))
   features = features:sub(1+self._startOffset,-1)
 
-  self:debug("Normalizing features...")
-  opt.price_means = opt.price_means or {}
-  opt.price_sigmas = opt.price_sigmas or {}
+  -- self:debug("Normalizing features...")
+  -- opt.price_means = opt.price_means or {}
+  -- opt.price_sigmas = opt.price_sigmas or {}
 
-  offset = 2
-  local ncols = nf - 2
-  for i=1,ncols do
-    local cprice = features:narrow(2,offset+i,1)
+  -- offset = 2
+  -- local ncols = nf - 2
+  -- for i=1,ncols do
+  --   local cprice = features:narrow(2,offset+i,1)
     
-    local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
-    local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
+  --   local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
+  --   local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
 
-    -- cprice[{}] = (cprice-cmean)/csig
+  --   -- cprice[{}] = (cprice-cmean)/csig
 
-    local cmean, csig = self:normalizeFeature(cprice,cmean,csig)
-    self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
+  --   local cmean, csig = self:normalizeFeature(cprice,cmean,csig)
+  --   self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
 
-    self:sigmoid(cprice)
+  --   self:sigmoid(cprice)
 
-    opt.price_means[i] = cmean
-    opt.price_sigmas[i] = csig
-  end
+  --   opt.price_means[i] = cmean
+  --   opt.price_sigmas[i] = csig
+  -- end
 
   -- print("Normalized log returns: ", features:narrow(1,1,10))
 
