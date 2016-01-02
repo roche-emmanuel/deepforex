@@ -352,9 +352,10 @@ function Class:computeLogReturn(vec, offset)
   -- Prepare the result vector:
   local res = vec:clone()
 
-  local rets = torch.cdiv(vec[{{1+offset,-1},{}}],vec[{{1,-1-offset},{}}])
-  res[{{1,offset},{}}] = 1.0
-  res[{{1+offset,-1},{}}] = rets
+  local rets = torch.cdiv(vec[{{1+offset,-1}}],vec[{{1,-1-offset}}])
+  
+  res[{{1,offset}}] = 1.0
+  res[{{1+offset,-1}}] = rets
 
   -- Also take the log:
   res:log()
