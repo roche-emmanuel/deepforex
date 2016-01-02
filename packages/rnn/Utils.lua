@@ -325,6 +325,8 @@ Function: computeEMA
 Method used to compute an EMA feature from a vector
 ]]
 function Class:computeEMA(vec, period)
+  self:debug("Feature ",self._idx,": EMA with period ",period)
+
   -- compute the coeff:
   -- cf. http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_averages
   local mult =  (2 / (period + 1))
@@ -338,7 +340,51 @@ function Class:computeEMA(vec, period)
     return ema
   end)
 
+  -- Normalize the feature:
+  self:normalizeFeature(res)
+  
+  -- convert to sigmoid:
+  self:sigmoid(res)
+
+  self:incrementFeatureIndex()
+
   return res
+end
+
+--[[
+Function: normalizeFeature
+
+Method used to normalize a feature vector
+]]
+function Class:normalizeFeature(cprice)
+  cmean = self._fMeans[self._idx] or cprice:mean(1):storage()[1]
+  csig = self._fDevs[self._idx] or cprice:std(1):storage()[1]
+
+  cprice[{}] = (cprice-cmean)/csig
+
+  -- Save the normalization details
+  self._fMeans[self._idx] = cmean
+  self._fDevs[self._idx] = csig
+
+  return cmean, csig
+end
+
+--[[
+Function: sigmoid
+
+Convert a vector to sigmoid:
+]]
+function Class:sigmoid(vec)
+  vec[{}] = torch.pow(torch.exp(-vec)+1.0,-1.0)
+end
+
+--[[
+Function: incrementFeatureIndex
+
+Increment the current feature index
+]]
+function Class:incrementFeatureIndex()
+  self._idx = self._idx + 1
 end
 
 --[[
@@ -348,6 +394,7 @@ Method used to compute a log return of a given price vector
 with a provided offset
 ]]
 function Class:computeLogReturn(vec, offset)
+  self:debug("Feature ",self._idx,": Log return with offset ",offset)
 
   -- Prepare the result vector:
   local res = vec:clone()
@@ -360,6 +407,14 @@ function Class:computeLogReturn(vec, offset)
   -- Also take the log:
   res:log()
 
+  -- Normalize the feature:
+  self:normalizeFeature(res)
+  
+  -- convert to sigmoid:
+  self:sigmoid(res)
+
+  self:incrementFeatureIndex()
+
   return res
 end
 
@@ -369,6 +424,8 @@ Function: computeREMA
 Method used to compute an REMA feature from a vector
 ]]
 function Class:computeREMA(vec, period)
+  self:debug("Feature ",self._idx,": REMA with period ",period)
+
   -- compute the coeff:
   -- cf. http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_averages
   local mult =  (2 / (period + 1))
@@ -385,6 +442,14 @@ function Class:computeREMA(vec, period)
     return ema
   end)
 
+  -- Normalize the feature:
+  self:normalizeFeature(res)
+  
+  -- convert to sigmoid:
+  self:sigmoid(res)
+
+  self:incrementFeatureIndex()
+
   return res
 end
 
@@ -395,6 +460,8 @@ Method used to compute an RSI feature from a vector
 The input for this method should be the price vector
 ]]
 function Class:computeRSI(vec, period)
+  self:debug("Feature ",self._idx,": RSI with period ",period)
+
   -- compute the coeff:
   -- cf. https://fr.wikipedia.org/wiki/Relative_strength_index
   
@@ -425,6 +492,14 @@ function Class:computeRSI(vec, period)
     -- compute the RSI (value will be between 0 and 1)
     return H/(H+B)
   end)
+
+  -- Normalize the feature:
+  self:normalizeFeature(res)
+  
+  -- convert to sigmoid:
+  self:sigmoid(res)
+
+  self:incrementFeatureIndex()
 
   return res
 end
@@ -487,101 +562,76 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- copy the week and day times:
   features[{{},{1,2}}] = prices[{{},{1,2}}]
 
+  self._startOffset = 1
+
+  self._fMeans = opt.feature_means or {}
+  self._fDevs = opt.feature_devs or {}
+
   -- copy the close prices:
   local offset = 2
-  local idx = 1
+  self._idx = 1
+
   local period, loff
-  for i=1,nsym do
+  for i=1,nsym do   
+    -- Retrieve the raw prices:
     local cprices = prices[{{},offset+4*i}]
-    features[{{},offset+idx}] = cprices
-    idx = idx+1
+
+    -- build the main logReturn feature:
+    features[{{},offset+self._idx}] = self:computeLogReturn(cprices,1)
 
     -- Also generate the additional log returns for each symbol:
     for j=1,numLogOffsets do
       loff = logOffsets[j]
-      self:debug("Adding Log return with offset ",loff)
-      features[{{},offset+idx}] = self:computeLogReturn(cprices,loff)
-      idx = idx + 1 
+      features[{{},offset+self._idx}] = self:computeLogReturn(cprices,loff) 
     end
 
     -- Also generate the EMAs for each symbol:
     for j=1,numEMAs do
       period = baseEMAPeriod*math.pow(2,j-1)
-      self:debug("Adding EMA with period ",period)
-      features[{{},offset+idx}] = self:computeEMA(cprices,period)
-      idx = idx + 1 
+      features[{{},offset+self._idx}] = self:computeEMA(cprices,period) 
     end
 
     -- Also generate the REMAs for each symbol:
     for j=1,numREMAs do
       period = baseEMAPeriod*math.pow(2,j-1)
-      self:debug("Adding REMA with period ",period)
-      features[{{},offset+idx}] = self:computeREMA(cprices,period)
-      idx = idx + 1 
+      features[{{},offset+self._idx}] = self:computeREMA(cprices,period) 
     end
 
     --  Also generate the RSI for each symbol:
     if rsiPeriod > 0 then
-      self:debug("Adding RSI with period ",rsiPeriod)
-      features[{{},offset+idx}] = self:computeRSI(cprices,rsiPeriod)
-      idx = idx + 1 
+      features[{{},offset+self._idx}] = self:computeRSI(cprices,rsiPeriod) 
     end
-
   end
 
-  -- print("Initial features: ", features:narrow(1,1,10))
+  opt.feature_means = self._fMeans
+  opt.feature_devs = self._fDevs
 
-  -- Convert the prices to log returns:
-  self:debug("Converting prices to log returns...")
-  local stride = numEMAs + numREMAs + numRSI + numLogOffsets + 1
+  -- remove the start offset lines of the features:
+  features = features:sub(1+self._startOffset,-1)
 
-  offset = 3
-  for i=1,nsym do
-    features[{{},offset}] = self:computeLogReturn(features[{{},offset}],1)
-    offset = offset+stride
-  end
-
-  -- print("Log returns: ", features:narrow(1,1,10))
-
-  -- remove the first line of the features:
-  features = features:sub(2,-1)
-
-  -- print("Removed the first line: ", features:narrow(1,1,10))
-
-  self:debug("Normalizing features...")
-  opt.price_means = opt.price_means or {}
-  opt.price_sigmas = opt.price_sigmas or {}
-
-  offset = 2
-  local ncols = nf - 2
-  for i=1,ncols do
-    local cprice = features:narrow(2,offset+i,1)
+  -- self:debug("Normalizing features...")
+  -- offset = 2
+  -- local ncols = nf - 2
+  -- for i=1,ncols do
+  --   local cprice = features:narrow(2,offset+i,1)
     
-    local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
-    local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
+  --   -- local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
+  --   -- local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
 
-    self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
+  --   local cmean, csig = self:normalizeFeature(cprice,opt.price_means[i],opt.price_sigmas[i])
+  --   self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
 
-    opt.price_means[i] = cmean
-    opt.price_sigmas[i] = csig
-
-    cprice[{}] = (cprice-cmean)/csig
-
-    -- local submat = features:narrow(2,offset,stride)
-    -- for j=1,stride do
-    --   submat[{{},j}] = (submat[{{},j}]-cmean)/csig
-    -- end
-
-    -- offset = offset + stride
-  end
+  --   opt.price_means[i] = cmean
+  --   opt.price_sigmas[i] = csig
+  -- end
 
   -- print("Normalized log returns: ", features:narrow(1,1,10))
 
   -- Apply sigmoid transformation to all features (except the times):
-  offset = 3
-  local cprice = features:narrow(2,offset,nf-2)
+  -- offset = 3
+  -- local cprice = features:narrow(2,offset,nf-2)
 
-  cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
+  -- cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
 
   -- print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
 
@@ -615,7 +665,7 @@ Function: generateLogReturnLabels
 Method used to generate the labels from the features
 ]]
 function Class:generateLogReturnLabels(opt, features)
-  self:debug("Generating log return features")
+  self:debug("Generating log return labels")
   CHECK(opt.forcast_index,"Invalid forcast_index")
   CHECK(opt.num_classes,"Invalid num_classes")
 
@@ -623,7 +673,7 @@ function Class:generateLogReturnLabels(opt, features)
   -- The label is just the next value of the sigmoid transformed log returns
   -- labels will be taken from a given symbol index:
 
-  self:debug("Forcast symbol index: ", opt.forcast_index)
+  self:debug("Forcast feature index: ", opt.forcast_index)
 
   local offset = 2
   local idx = offset+opt.forcast_index

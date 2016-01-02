@@ -92,10 +92,14 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 125"
 # screen -r forex_v29c
 
-screen -dmS forex_v29d bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29d -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 126"
+# screen -dmS forex_v29d bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29d -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 126"
 # screen -r forex_v29d
 
-screen -dmS forex_v29e bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29e -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 127"
-screen -r forex_v29e
+# screen -dmS forex_v29e bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29e -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 127"
+# screen -r forex_v29e
+
+screen -dmS forex_v30 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v30 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1"
+screen -r forex_v30
