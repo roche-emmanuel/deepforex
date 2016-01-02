@@ -117,6 +117,10 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v32 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1"
 # screen -r forex_v32
 
-screen -dmS forex_v33 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v33 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1"
-screen -r forex_v33
+# screen -dmS forex_v33 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v33 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1"
+# screen -r forex_v33
+
+screen -dmS forex_v34 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v34 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 2"
+screen -r forex_v34
