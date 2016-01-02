@@ -493,11 +493,13 @@ function Class:computeRSI(vec, period)
     return H/(H+B)
   end)
 
+  --  RSI doesn't need normalization of sigmoid processing: it will always be in the range [0,1]
+
   -- Normalize the feature:
-  self:normalizeFeature(res)
+  -- self:normalizeFeature(res)
   
   -- convert to sigmoid:
-  self:sigmoid(res)
+  -- self:sigmoid(res)
 
   self:incrementFeatureIndex()
 
@@ -610,40 +612,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- print("Feature before norm: ",features:narrow(1,1,10))
   features = features:sub(1+self._startOffset,-1)
 
-  -- self:debug("Normalizing features...")
-  -- opt.price_means = opt.price_means or {}
-  -- opt.price_sigmas = opt.price_sigmas or {}
-
-  -- offset = 2
-  -- local ncols = nf - 2
-  -- for i=1,ncols do
-  --   local cprice = features:narrow(2,offset+i,1)
-    
-  --   local cmean = opt.price_means[i] or cprice:mean(1):storage()[1]
-  --   local csig = opt.price_sigmas[i] or cprice:std(1):storage()[1]
-
-  --   -- cprice[{}] = (cprice-cmean)/csig
-
-  --   local cmean, csig = self:normalizeFeature(cprice,cmean,csig)
-  --   self:debug("Feature ",i," : mean=",cmean,", sigma=",csig)
-
-  --   self:sigmoid(cprice)
-
-  --   opt.price_means[i] = cmean
-  --   opt.price_sigmas[i] = csig
-  -- end
-
-  -- print("Normalized log returns: ", features:narrow(1,1,10))
-
-  -- Apply sigmoid transformation to all features (except the times):
-  -- offset = 3
-  -- local cprice = features:narrow(2,offset,nf-2)
-
-  -- cprice[{}] = torch.pow(torch.exp(-cprice)+1.0,-1.0)
-
-  -- print("Sigmoid transformed log returns: ", features:narrow(1,1,10))
-
-  -- Now apply normalization:
+  -- Now apply normalization of the times value:
   self:normalizeTimes(features)
   -- print("Normalized times: ", features:narrow(1,1,10))
 

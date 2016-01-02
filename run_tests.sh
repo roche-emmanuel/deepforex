@@ -100,10 +100,19 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29e -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -seed 127"
 # screen -r forex_v29e
 
-screen -dmS forex_v30 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v30 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1"
-screen -r forex_v30
+# screen -dmS forex_v30 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v30 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1"
+# screen -r forex_v30
 
 # screen -dmS forex_v29t3 bash -c \
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v29t3 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -forcast_index 1 -max_sessions 3"
 # screen -r forex_v29t3
+
+# Forcast the log return with offset = 3
+# screen -dmS forex_v31 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v31 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 2"
+# screen -r forex_v31
+
+screen -dmS forex_v32 bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -suffix v32 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1"
+screen -r forex_v32
