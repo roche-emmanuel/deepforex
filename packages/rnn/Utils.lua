@@ -1210,6 +1210,8 @@ function Class:performTrainSession(opt, tdesc)
   tdesc.eval_offset = tdesc.eval_offset or opt.train_size
 
 	-- Now that we are done with the training part we should evaluate the network predictions:
+  self:debug("Starting evaluation at offset position: ", tdesc.eval_offset)
+  
 	for i=1,opt.eval_size do
 
 		--  Move to the nex iteration each time:

@@ -205,7 +205,9 @@ for i=1,nsessions do
   tdesc.train_offset = tdesc.train_offset + opt.eval_size
 
   -- Now we should write the result arrays:
-  utils:writeArrays("misc/eval_results_" .. suffix .. ".csv",{tdesc.evalidx_values,tdesc.pred_values,tdesc.label_values},{"eval_index","prediction","label"})
+  utils:writeArrays("misc/eval_results_" .. suffix .. ".csv",
+    {tdesc.timetags_values,tdesc.evalidx_values,tdesc.pred_values,tdesc.label_values},
+    {"timetag","eval_index","prediction","label"})
 
   utils:writeArray("misc/train_losses_" .. suffix .. ".csv", tdesc.train_losses)
   utils:writeArray("misc/eval_losses_" .. suffix .. ".csv", tdesc.eval_losses)
