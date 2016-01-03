@@ -147,7 +147,23 @@ source ~/scripts/profile.sh
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/mt5_2015_12\" -suffix v36 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 10 -max_sessions 1000 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 123"
 # screen -r forex_v36
 
-dforex_screen v36 \
+# dforex_screen v36 \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 100 \
+#   -log_return_offsets 3 \
+#   -forcast_index 1 \
+#   -seed 123 \
+#   -with_timetag 1 \
+#   -with_close_only 1
+
+dforex_screen_d v36b \
   -data_dir inputs/mt5_2015_12 \
   -num_remas 2 \
   -num_emas 1 \
@@ -159,6 +175,22 @@ dforex_screen v36 \
   -initial_max_epochs 100 \
   -log_return_offsets 3 \
   -forcast_index 1 \
-  -seed 123 \
+  -seed 124 \
+  -with_timetag 1 \
+  -with_close_only 1
+
+dforex_screen_d v36c \
+  -data_dir inputs/mt5_2015_12 \
+  -num_remas 2 \
+  -num_emas 1 \
+  -rsi_period 9 \
+  -batch_size 80 \
+  -eval_size 10 \
+  -max_sessions 1000 \
+  -max_epochs 15 \
+  -initial_max_epochs 100 \
+  -log_return_offsets 3 \
+  -forcast_index 1 \
+  -seed 125 \
   -with_timetag 1 \
   -with_close_only 1

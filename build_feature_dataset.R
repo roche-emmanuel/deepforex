@@ -1,5 +1,6 @@
 
-#method used to build a simple feature dataframe from a raw input:
+#method used to build a simple feature dataframe from a raw input
+# and merge it with the corresponding generated predictions
 build_feature_dataset <- function(fpath = "mt5_2015_12", symbol = "EURUSD", log.offset = 1, ppath = "v36")
 {
   # Read the datafile:
