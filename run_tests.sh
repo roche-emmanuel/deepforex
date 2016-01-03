@@ -125,6 +125,14 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v34 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 2"
 # screen -r forex_v34
 
-screen -dmS forex_v35 bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 2"
-screen -r forex_v35
+screen -dmS forex_v35a bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35a -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 600 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 123"
+# screen -r forex_v35a
+
+screen -dmS forex_v35b bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35b -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 600 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 124"
+# screen -r forex_v35b
+
+screen -dmS forex_v35c bash -c \
+  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 600 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 125"
+screen -r forex_v35c
