@@ -362,6 +362,8 @@ function Class:normalizeFeature(cprice,cmean,csig)
 
   cprice[{}] = (cprice-cmean)/csig
 
+  self:debug("Normalizing feature ", self._idx,": mean=",cmean,", dev=",csig)
+  
   -- Save the normalization details
   self._fMeans[self._idx] = cmean
   self._fDevs[self._idx] = csig
@@ -534,6 +536,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   CHECK(opt.num_remas,"Invalid num_emas")
   CHECK(opt.rsi_period,"Invalid rsi_period")
   CHECK(opt.log_return_offsets,"Invalid log_return_offsets")
+  CHECK(opt.feature_offset,"Invalid feature_offset")
 
   self:debug("Generating log return features")
 
@@ -563,8 +566,6 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- populate this new tensor:
   -- copy the week and day times:
   features[{{},{1,2}}] = prices[{{},{1,2}}]
-
-  self._startOffset = 20
 
   self._fMeans = opt.feature_means or {}
   self._fDevs = opt.feature_devs or {}
@@ -610,7 +611,7 @@ function Class:generateLogReturnFeatures(opt,prices)
 
   -- remove the start offset lines of the features:
   -- print("Feature before norm: ",features:narrow(1,1,10))
-  features = features:sub(1+self._startOffset,-1)
+  features = features:sub(1+opt.feature_offset,-1)
 
   -- Now apply normalization of the times value:
   self:normalizeTimes(features)

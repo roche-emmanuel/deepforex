@@ -77,6 +77,7 @@ cmd:option('-num_remas',0,'Number of return EMA features generated for each symb
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 cmd:option('-rsi_period',0,'Period to use for RSI of 0 if disabled')
 cmd:option('-log_return_offsets',"",'list of comma separated offset values that should be used to compute additional log return features')
+cmd:option('-feature_offset',20,'Offset applied at the start of the features tensor before starting the training process')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
@@ -93,6 +94,7 @@ utils:setupGPU(opt)
 -- for the network
 -- And thus we must load the data
 local raw_inputs = utils:loadRawInputs(opt)
+log:debug("Number of raw input samples: ", raw_inputs:size(1))
 
 -- Once we have loaded the raw inputs we can build the desired features/labels from them
 -- The raw inputs will contain 2 cols for the week and day times plus 4 cols per symbol
@@ -135,6 +137,8 @@ log:debug("Cut features/labels to ", nsamples, " samples")
 features = features:sub(1,nsamples)
 labels = labels:sub(1,nsamples)
 
+
+log:debug("Prediction offset: ", opt.train_size + opt.feature_offset)
 
 -- Once the features and labels are ready we can build the RNN prototype since
 -- we have the number of inputs and outputs:
