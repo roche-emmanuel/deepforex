@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/bash
+
+source ~/scripts/profile.sh
 
 # for i in 5 10 20 25 30 35 40 45 50; 
 # for i in 25; 
@@ -137,6 +139,26 @@
 #   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35c -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 1000 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 125"
 # screen -r forex_v35c
 
-screen -dmS forex_v35d bash -c \
-  "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35d -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 1000 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 126"
-screen -r forex_v35d
+# screen -dmS forex_v35d bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/raw_2015_01_to_2015_10\" -suffix v35d -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 20 -max_sessions 1000 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 126"
+# screen -r forex_v35d
+
+# screen -dmS forex_v36 bash -c \
+#   "source /home/kenshin/scripts/profile.sh; dforex_online_train -data_dir \"inputs/mt5_2015_12\" -suffix v36 -num_remas 2 -num_emas 1 -rsi_period 9 -batch_size 80 -eval_size 10 -max_sessions 1000 -max_epochs 15 -initial_max_epochs 100 -log_return_offsets 3 -forcast_index 1 -seed 123"
+# screen -r forex_v36
+
+dforex_screen v36 \
+  -data_dir inputs/mt5_2015_12 \
+  -num_remas 2 \
+  -num_emas 1 \
+  -rsi_period 9 \
+  -batch_size 80 \
+  -eval_size 10 \
+  -max_sessions 100 \
+  -max_epochs 15 \
+  -initial_max_epochs 100 \
+  -log_return_offsets 3 \
+  -forcast_index 1 \
+  -seed 123 \
+  -with_timetag 1 \
+  -with_close_only 1

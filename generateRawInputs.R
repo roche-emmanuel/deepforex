@@ -5,7 +5,7 @@ library(fasttime)
 
 # Method used to generate a raw_input dataset compatible with the deepforex RNN
 # from a given input folder
-generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "_2015_12")
+generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "_2015_12", startOffset=NULL)
 {
   if(is.null(symbols)) {
     print("Using default input symbol list.")
@@ -45,16 +45,34 @@ generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "_2015_12"
     }
   }
   
-  # convert the date time cols:
+  # Add the timetags:
+  datetimes <- paste(result$date,result$time)
   
+  # convert the date time cols:
   data <- finalizeDataset(result)
+  
+  data$date <- as.numeric(as.POSIXct(datetimes,format = "%Y.%m.%d %H:%M"))
+  
+  names(data)[1] <- "timetag"
+  
+  #setcolorder(data,c(1,nc,2:(nc-1)))
+  
+  len <- dim(data)[1]
+
+    # discard some rows if requested:
+  if(!is.null(startOffset))
+  {
+    data <- data[startOffset:len,]  
+  }
+  
+  len <- dim(data)[1]
   
   # Write the data file:
   # write the input dataset:
   # Note that we do not write the dates in this file:
-  write.csv(data[,-c("date"),with=F],paste0("inputs/",path,"/raw_inputs.csv"),row.names=F)
+  #write.csv(data[,-c("date"),with=F],paste0("inputs/",path,"/raw_inputs.csv"),row.names=F)
+  write.csv(data,paste0("inputs/",path,"/raw_inputs.csv"),row.names=F)
   
-  len <- dim(data)[1]
   
   cfgfile <- paste0("inputs/",path,"/","dataset.lua") 
   cat("return {", file=cfgfile, sep="\n")

@@ -279,7 +279,7 @@ function Class:loadRawInputs(opt,fname)
 
 	  self:debug('Preprocessing ',dcfg.num_samples,' samples...')
 
-	  local data = self:readCSV(src,dcfg.num_samples,dcfg.num_inputs)
+	  local data = self:readCSV(src,dcfg.num_samples,dcfg.num_inputs+opt.with_timetag)
 	  
 	  -- save the tensor to file:
 	  torch.save(dest, data)
@@ -287,7 +287,17 @@ function Class:loadRawInputs(opt,fname)
 	  self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
 	end
 
-	return torch.load(dest)
+  local data = torch.load(dest)
+  local timetags = nil
+  if opt.with_timetag == 1 then
+    self:debug("Extracting timetags...")
+    timetags = data:narrow(2,1,1)
+    data = data:sub(1,-1,2,-1)
+
+    self:debug("Found timetags: ", timetags:narrow(1,1,10))
+  end
+
+	return data, timetags
 end
 
 --[[
@@ -295,9 +305,9 @@ Function: getNumSymbols
 
 Retrieve the number of symbols considered in a given raw inputs dataset
 ]]
-function Class:getNumSymbols(inputs)
+function Class:getNumSymbols(opt,inputs)
   local np = inputs:size(2) - 2
-  return np/4	
+  return np/(opt.with_close_only==1 and 1 or 4)	
 end
 
 --[[
@@ -363,7 +373,7 @@ function Class:normalizeFeature(cprice,cmean,csig)
   cprice[{}] = (cprice-cmean)/csig
 
   self:debug("Normalizing feature ", self._idx,": mean=",cmean,", dev=",csig)
-  
+
   -- Save the normalization details
   self._fMeans[self._idx] = cmean
   self._fDevs[self._idx] = csig
@@ -530,7 +540,7 @@ Function: generateLogReturnFeatures
 
 Method used to generate the log returns features from a raw_inputs tensor
 ]]
-function Class:generateLogReturnFeatures(opt,prices)
+function Class:generateLogReturnFeatures(opt,prices,timetags)
   CHECK(opt.ema_base_period,"Invalid ema_base_period")
   CHECK(opt.num_emas,"Invalid num_emas")
   CHECK(opt.num_remas,"Invalid num_emas")
@@ -541,7 +551,7 @@ function Class:generateLogReturnFeatures(opt,prices)
   self:debug("Generating log return features")
 
   -- Retrive the number of symbols:
-  local nsym = self:getNumSymbols(prices)
+  local nsym = self:getNumSymbols(opt,prices)
 
   -- print("Initial prices: ", prices:narrow(1,1,10))
 
@@ -575,9 +585,11 @@ function Class:generateLogReturnFeatures(opt,prices)
   self._idx = 1
 
   local period, loff
+  local istride = opt.with_close_only==1 and 1 or 4
+
   for i=1,nsym do   
     -- Retrieve the raw prices:
-    local cprices = prices[{{},offset+4*i}]
+    local cprices = prices[{{},offset+istride*i}]
 
     -- build the main logReturn feature:
     features[{{},offset+self._idx}] = self:computeLogReturn(cprices,1)
@@ -613,6 +625,11 @@ function Class:generateLogReturnFeatures(opt,prices)
   -- print("Feature before norm: ",features:narrow(1,1,10))
   features = features:sub(1+opt.feature_offset,-1)
 
+  if timetags then
+    timetags = timetags:sub(1+opt.feature_offset,-1)
+    CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size.")
+  end
+
   -- Now apply normalization of the times value:
   self:normalizeTimes(features)
   -- print("Normalized times: ", features:narrow(1,1,10))
@@ -642,7 +659,7 @@ Function: generateLogReturnLabels
 
 Method used to generate the labels from the features
 ]]
-function Class:generateLogReturnLabels(opt, features)
+function Class:generateLogReturnLabels(opt, features, timetags)
   self:debug("Generating log return labels")
   CHECK(opt.forcast_index,"Invalid forcast_index")
   CHECK(opt.num_classes,"Invalid num_classes")
@@ -659,6 +676,10 @@ function Class:generateLogReturnLabels(opt, features)
 
   --  Should remove the last row from the features:
   features = features:sub(1,-2)
+  if timetags then
+    timetags = timetags:sub(1,-2)
+    CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size.")
+  end
 
   -- print("Generated log return labels: ", labels:narrow(1,1,10))
 
@@ -1172,6 +1193,7 @@ function Class:performTrainSession(opt, tdesc)
 	tdesc.eval_losses = tdesc.eval_losses or {}
   tdesc.correct_signs = tdesc.correct_signs or {}
   tdesc.evalidx_values = tdesc.evalidx_values or {}
+  tdesc.timetags_values = tdesc.timetags_values or {}
   tdesc.pred_values = tdesc.pred_values or {}
 	tdesc.label_values = tdesc.label_values or {}
 
@@ -1185,15 +1207,19 @@ function Class:performTrainSession(opt, tdesc)
   -- Additionally note that the +1 is done in the loop below directly:
   tdesc.iteration = opt.train_size - opt.seq_length
 
+  tdesc.eval_offset = tdesc.eval_offset or opt.train_size
+
 	-- Now that we are done with the training part we should evaluate the network predictions:
 	for i=1,opt.eval_size do
 
 		--  Move to the nex iteration each time:
-		tdesc.iteration = tdesc.iteration + 1 
+    tdesc.eval_offset = tdesc.eval_offset + 1
+  	tdesc.iteration = tdesc.iteration + 1 
 		local loss, pred, yval = self:evaluate(opt, tdesc)
 
     self:debug("Prediction: ", pred, ", real value: ",yval)
 
+    table.insert(tdesc.timetags_values, tdesc.timetags and tdesc.timetags[tdesc.eval_offset] or tdesc.eval_offset)
     table.insert(tdesc.evalidx_values,i)
     table.insert(tdesc.pred_values,pred)
     table.insert(tdesc.label_values,yval)

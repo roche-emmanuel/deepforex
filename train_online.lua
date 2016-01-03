@@ -78,6 +78,8 @@ cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 cmd:option('-rsi_period',0,'Period to use for RSI of 0 if disabled')
 cmd:option('-log_return_offsets',"",'list of comma separated offset values that should be used to compute additional log return features')
 cmd:option('-feature_offset',20,'Offset applied at the start of the features tensor before starting the training process')
+cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
+cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
@@ -93,24 +95,23 @@ utils:setupGPU(opt)
 -- Before we can create a prototype we must know what will be the input/output sizes
 -- for the network
 -- And thus we must load the data
-local raw_inputs = utils:loadRawInputs(opt)
+local raw_inputs, timetags = utils:loadRawInputs(opt)
 log:debug("Number of raw input samples: ", raw_inputs:size(1))
 
 -- Once we have loaded the raw inputs we can build the desired features/labels from them
 -- The raw inputs will contain 2 cols for the week and day times plus 4 cols per symbol
 -- so we can extract the number of symbols:
-local nsym = utils:getNumSymbols(raw_inputs)
+local nsym = utils:getNumSymbols(opt,raw_inputs)
 log:debug("Detected ",nsym," symbols in raw inputs.")
 
 
 -- Now we can build the features tensor:
-local features = utils:generateLogReturnFeatures(opt, raw_inputs)
+local features = utils:generateLogReturnFeatures(opt, raw_inputs, timetags)
 
 -- From the features, we can build the labels tensor:
 -- not that this method will also change the features tensor.
-local features, labels = utils:generateLogReturnLabels(opt, features)
+local features, labels = utils:generateLogReturnLabels(opt, features, timetags)
 CHECK(features:size(1)==labels:size(1),"Mismatch in features/labels sizes")
-
 
 -- Later in the training we train on train_size samples, then eval on eval_size
 -- then train again, then eval again etc... right now we can already compute what should
@@ -136,7 +137,10 @@ nsamples = opt.train_size + nsessions*opt.eval_size
 log:debug("Cut features/labels to ", nsamples, " samples")
 features = features:sub(1,nsamples)
 labels = labels:sub(1,nsamples)
-
+if timetags then
+  timetags = timetags:sub(1,nsamples)
+  CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size.")
+end
 
 log:debug("Prediction offset: ", opt.train_size + opt.feature_offset)
 
@@ -173,6 +177,7 @@ tdesc.grad_params = grad_params
 tdesc.init_state = init_state
 tdesc.train_offset = 0
 tdesc.clones = clones
+tdesc.timetags = timetags
 
 local timer = torch.Timer()
 
