@@ -106,11 +106,11 @@ log:debug("Detected ",nsym," symbols in raw inputs.")
 
 
 -- Now we can build the features tensor:
-local features = utils:generateLogReturnFeatures(opt, raw_inputs, timetags)
+local features, timetags = utils:generateLogReturnFeatures(opt, raw_inputs, timetags)
 
 -- From the features, we can build the labels tensor:
 -- not that this method will also change the features tensor.
-local features, labels = utils:generateLogReturnLabels(opt, features, timetags)
+local features, labels, timetags = utils:generateLogReturnLabels(opt, features, timetags)
 CHECK(features:size(1)==labels:size(1),"Mismatch in features/labels sizes")
 
 -- Later in the training we train on train_size samples, then eval on eval_size

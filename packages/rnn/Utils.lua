@@ -236,17 +236,24 @@ Function: readCSV
 
 Helper method used to read a CSV file into a tensor
 ]]
-function Class:readCSV(filename, nrows, ncols)
+function Class:readCSV(filename, nrows, ncols, withtags)
   -- Read data from CSV to tensor
   local csvFile = io.open(filename, 'r')  
   local header = csvFile:read()
 
   local data = torch.Tensor(nrows, ncols)
+  local timetags = nil
+  if withtags then
+    timetags = torch.LongTensor(nrows)
+  end
 
   local i = 0  
   for line in csvFile:lines('*l') do  
     i = i + 1
     local l = line:split(',')
+    if timetags then
+      timetags[i] = table.remove(l,1)
+    end
     for key, val in ipairs(l) do
       data[i][key] = val
     end
@@ -254,7 +261,7 @@ function Class:readCSV(filename, nrows, ncols)
 
   csvFile:close()
 
-  return data
+  return data, timetags
 end
 
 --[[
@@ -271,7 +278,8 @@ function Class:loadRawInputs(opt,fname)
 	fname = fname or "raw_inputs"
 
 	local src = path.join(dataDir, fname ..".csv")
-	local dest = path.join(dataDir, fname ..".t7")
+  local dest = path.join(dataDir, fname ..".t7")
+	local tagsfile = path.join(dataDir, fname .."_timetags.t7")
 
 	if not path.exists(dest) or self:isUpdateRequired(src,dest) then
 		self:debug('Preprocessing: generating file ', dest, '...')
@@ -279,21 +287,23 @@ function Class:loadRawInputs(opt,fname)
 
 	  self:debug('Preprocessing ',dcfg.num_samples,' samples...')
 
-	  local data = self:readCSV(src,dcfg.num_samples,dcfg.num_inputs+opt.with_timetag)
+	  local data, timetags = self:readCSV(src,dcfg.num_samples,dcfg.num_inputs,opt.with_timetag==1)
 	  
 	  -- save the tensor to file:
-	  torch.save(dest, data)
+    torch.save(dest, data)
+	  if timetags then
+      torch.save(tagsfile, timetags)
+    end
 
 	  self:debug('Preprocessing completed in ' .. timer:time().real .. ' seconds')
 	end
 
   local data = torch.load(dest)
+
   local timetags = nil
   if opt.with_timetag == 1 then
     self:debug("Extracting timetags...")
-    timetags = data:narrow(2,1,1)
-    data = data:sub(1,-1,2,-1)
-
+    timetags = torch.load(tagsfile)
     self:debug("Found timetags: ", timetags:narrow(1,1,10))
   end
 
@@ -634,7 +644,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
   self:normalizeTimes(features)
   -- print("Normalized times: ", features:narrow(1,1,10))
 
-  return features
+  return features, timetags
 end
 
 -- preprocessing helper function
@@ -678,7 +688,7 @@ function Class:generateLogReturnLabels(opt, features, timetags)
   features = features:sub(1,-2)
   if timetags then
     timetags = timetags:sub(1,-2)
-    CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size.")
+    CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size: ",timetags:size(1),"!=",features:size(1) )
   end
 
   -- print("Generated log return labels: ", labels:narrow(1,1,10))
@@ -688,9 +698,16 @@ function Class:generateLogReturnLabels(opt, features, timetags)
   end
 
   print("Labels classes: ", labels:narrow(1,1,10))
+  if timetags then
+    local vals = {}
+    for i = 1,10 do 
+      table.insert(vals,timetags[i])
+    end
+    print("Final timetags: ", vals)
+  end
   print("Final features: ", features:narrow(1,1,10))
 
-  return features, labels
+  return features, labels, timetags
 end
 
 --[[
@@ -1207,11 +1224,11 @@ function Class:performTrainSession(opt, tdesc)
   -- Additionally note that the +1 is done in the loop below directly:
   tdesc.iteration = opt.train_size - opt.seq_length
 
-  tdesc.eval_offset = tdesc.eval_offset or opt.train_size
+  tdesc.eval_offset = tdesc.eval_offset or (opt.train_size-1)
 
 	-- Now that we are done with the training part we should evaluate the network predictions:
   self:debug("Starting evaluation at offset position: ", tdesc.eval_offset)
-  
+
 	for i=1,opt.eval_size do
 
 		--  Move to the nex iteration each time:
