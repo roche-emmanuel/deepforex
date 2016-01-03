@@ -154,7 +154,7 @@ dforex_screen v36 \
   -rsi_period 9 \
   -batch_size 80 \
   -eval_size 10 \
-  -max_sessions 20 \
+  -max_sessions 1000 \
   -max_epochs 15 \
   -initial_max_epochs 100 \
   -log_return_offsets 3 \
