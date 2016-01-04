@@ -80,6 +80,7 @@ cmd:option('-log_return_offsets',"",'list of comma separated offset values that 
 cmd:option('-feature_offset',20,'Offset applied at the start of the features tensor before starting the training process')
 cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
 cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
+cmd:option('-start_offset',0,'Offset applied on raw inputs before training anything')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
@@ -97,6 +98,14 @@ utils:setupGPU(opt)
 -- And thus we must load the data
 local raw_inputs, timetags = utils:loadRawInputs(opt)
 log:debug("Number of raw input samples: ", raw_inputs:size(1))
+
+if opt.start_offset > 0 then
+  log:debug("Applying start offset of ", opt.start_offset)
+  raw_inputs = raw_inputs:sub(opt.start_offset+1,-1)
+  if timetags then
+    timetags = timetags:sub(opt.start_offset+1,-1)
+  end
+end
 
 -- Once we have loaded the raw inputs we can build the desired features/labels from them
 -- The raw inputs will contain 2 cols for the week and day times plus 4 cols per symbol
