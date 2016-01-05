@@ -37,6 +37,14 @@ cmd:text('Train an online FOREX trading agent')
 cmd:text()
 cmd:text('Options')
 
+cmd:option('-suffix','vxx','suffix to append to all written files')
+cmd:option('-local_port',30000,'Local port used for the socket connection')
+
+cmd:option('-batch_size',80,'Number of sequences to train on in parallel or -1 if we use only sequential training')
+cmd:option('-batch_num_seqs',1,'Number of consecutive sequences in each batch slice')
+cmd:option('-seq_length',25,'number of timesteps to unroll for')
+
+
 -- data
 cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
 
@@ -50,12 +58,9 @@ cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-gpuid',0,'which gpu to use. -1 = use CPU')
 cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
-cmd:option('-seq_length',25,'number of timesteps to unroll for')
 
 cmd:option('-forcast_index',1,'Index of the feature that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
-cmd:option('-batch_size',-1,'Number of sequences to train on in parallel or -1 if we use only sequential training')
-cmd:option('-batch_num_seqs',1,'Number of consecutive sequences in each batch slice')
 cmd:option('-train_size',2000,'Number of steps used for each training session')
 cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
 cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
@@ -71,7 +76,6 @@ cmd:option('-initial_max_epochs',3.0,'number of full passes through the training
 cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings when using GPU. Might make code bit slower but reports accurate timings.')
 cmd:option('-grad_clip',5,'clip gradients at this value')
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
-cmd:option('-suffix','vxx','suffix to append to all written files')
 cmd:option('-num_emas',0,'Number of EMA features generated for each symbol')
 cmd:option('-num_remas',0,'Number of return EMA features generated for each symbol')
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
@@ -81,7 +85,6 @@ cmd:option('-feature_offset',20,'Offset applied at the start of the features ten
 cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
 cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
 cmd:option('-start_offset',0,'Offset applied on raw inputs before training anything')
-cmd:option('-local_port',30000,'Local port used for the socket connection')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
