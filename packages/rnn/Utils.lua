@@ -535,7 +535,7 @@ Helper method used to split strings
 ]]
 function Class:split(inputstr, sep)
   if sep == nil then
-    sep = "%s"
+    sep = ","
   end
   local t={} ; i=1
   for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
