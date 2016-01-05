@@ -32,7 +32,7 @@ Function: output
 Method to output a message.
 ]]
 function Class:output(level,trace,msg)
-	self._file:write(msg)
+	self._file:write(msg.."\n")
 	self._file:flush()
 end
 

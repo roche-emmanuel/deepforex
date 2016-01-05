@@ -18,3 +18,6 @@ inputs/
 
 # ignore the misc folder:
 misc/
+
+# ignore the log files:
+*.log
