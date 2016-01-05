@@ -5,7 +5,7 @@ library(fasttime)
 
 # Method used to generate a raw_input dataset compatible with the deepforex RNN
 # from a given input folder
-generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "_2015_12", startOffset=NULL)
+generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "", startOffset=NULL)
 {
   if(is.null(symbols)) {
     print("Using default input symbol list.")

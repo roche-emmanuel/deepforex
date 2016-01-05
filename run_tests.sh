@@ -244,8 +244,59 @@ source ~/scripts/profile.sh
 #   -with_timetag 1 \
 #   -with_close_only 1
 
-dforex_screen_d v38 \
-  -data_dir inputs/mt5_2015_12 \
+# dforex_screen_d v38 \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 100 \
+#   -log_return_offsets 3 \
+#   -forcast_index 1 \
+#   -seed 123 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 10000
+
+# dforex_screen_d v38b \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 100 \
+#   -log_return_offsets 3 \
+#   -forcast_index 1 \
+#   -seed 124 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 10000
+
+# dforex_screen_d v38c \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 100 \
+#   -log_return_offsets 3 \
+#   -forcast_index 1 \
+#   -seed 125 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 10000
+
+dforex_screen_d v39 \
+  -data_dir inputs/mt5_2015_12_EUR \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
@@ -259,10 +310,10 @@ dforex_screen_d v38 \
   -seed 123 \
   -with_timetag 1 \
   -with_close_only 1 \
-  -start_offset 10000
+  -start_offset 0
 
-dforex_screen_d v38b \
-  -data_dir inputs/mt5_2015_12 \
+dforex_screen_d v39b \
+  -data_dir inputs/mt5_2015_12_EUR \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
@@ -276,10 +327,10 @@ dforex_screen_d v38b \
   -seed 124 \
   -with_timetag 1 \
   -with_close_only 1 \
-  -start_offset 10000
+  -start_offset 0
 
-dforex_screen_d v38c \
-  -data_dir inputs/mt5_2015_12 \
+dforex_screen_d v39c \
+  -data_dir inputs/mt5_2015_12_EUR \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
@@ -293,5 +344,4 @@ dforex_screen_d v38c \
   -seed 125 \
   -with_timetag 1 \
   -with_close_only 1 \
-  -start_offset 10000
-
+  -start_offset 0
