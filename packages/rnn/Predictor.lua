@@ -3,6 +3,7 @@ local Class = createClass{name="Predictor",bases={"base.Object"}};
 local sys = require "sys"
 local zmq = require "zmq"
 local utils = require "rnn.Utils"
+local Network = require "rnn.ForexNetwork"
 
 --[[
 Class: rnn.Predictor
@@ -20,8 +21,22 @@ function Class:initialize(opt)
   self:debug("Creating a Predictor instance.")
   CHECK(opt.local_port,"Invalid local port")
   CHECK(opt.batch_size > 0,"Invalid batch size value")
+  CHECK(opt.num_networks>0,"Invalid number of networks")
+  CHECK(opt.train_frequency>0,"Invalid training frequency")
 
   self.opt = opt
+
+  -- Number of networks that should be trained in parallel by this model:
+  self._numNets = opt.num_networks
+  
+  -- references on the nets:
+  self._nets = {}
+
+  -- ID of the network that should be trained
+  self._trainNet = 0
+
+  -- Frequency at which the networks should be trained:
+  self._trainFreq = opt.train_frequency
 
   --  Setup the log system:
   local lm = require "log.LogManager"
@@ -53,6 +68,55 @@ function Class:sendData(data)
 end
 
 --[[
+Function: performTraining
+
+Method used to check if we can perform a training session
+]]
+function Class:performTraining()
+  -- if we don't have enough samples, we don't train anything:
+  if self._numSamples < self._trainSize then
+    self:debug("Not performing training: only have ", self._numSamples," samples")
+    return
+  end
+
+  -- Check if we should perform a training:
+  if ((self._numSamples - self._trainSize) % self._trainFreq) ~= 0 then
+    -- No need to perform training: mismatch on train frequency
+    return
+  end
+
+  self:debug("Performing training on num samples ",self._numSamples)
+
+  -- Now we need to decide which of the networks should be updated:
+  self._trainNet = self._trainNet+1
+  if self._trainNet > self._numNets then
+    -- loop back:
+    self._trainNet = 1
+  end
+
+  -- Now we retrieve this network, or we create it:
+  local net = self._nets[self._trainNet]
+  if not net then
+    -- Create a new network:
+    net = Network{parent=self,opt=self.opt,id=self._trainNet}
+    self._nets[self._trainNet] = net
+  end
+
+  -- Now that we have a network, we can request a training on it
+  net:train(self._rawInputs, self._timetags)
+end
+
+--[[
+Function: getPrediction
+
+Method used to retrieve the current prediction
+]]
+function Class:getPrediction()
+  -- TODO provide implementation
+  return 0.0
+end
+
+--[[
 Function: handleSingleInput
 
 Method used to handle a jsut received single input
@@ -79,8 +143,16 @@ function Class:handleSingleInput(data)
   -- Increment the sample count:
   self._numSamples = self._numSamples + 1
 
+  -- check if we can perform a training session:
+  self:performTraining()
+
+  -- retrieve the current prediction if any:
+  local pred = self:getPrediction()
+
+  self:debug("Current prediction: pred")
+
   -- Now we need to send a prediction back:
-  self:sendData{"prediction",tag,0.0}
+  self:sendData{"prediction",tag,pred}
 end
 
 --[[
@@ -122,11 +194,14 @@ function Class:handleMultiInputs(data)
     end
   end
 
-  self:debug("Received sub timetags: ",sub_timetags)
-  self:debug("Received sub inputs: ",sub_inputs)
+  -- self:debug("Received sub timetags: ",sub_timetags)
+  -- self:debug("Received sub inputs: ",sub_inputs)
 
   -- Increment the sample count:
   self._numSamples = self._numSamples + nrows
+
+  -- check if we can perform a training session:
+  self:performTraining()  
 end
 
 --[[
@@ -152,17 +227,22 @@ function Class:handleInit(data)
   self._trainSize = opt.train_size
   self._nf = nf
 
+  -- Also update the number of inputs/outputs for the networks here:
+  self.opt.num_inputs = nf
+  self.opt.num_outputs = self.opt.num_classes
+
   -- We also store the number of samples received to
   -- perform the training in a timed fashion:
   self._numSamples = 0
+
+  -- Also ensure that we discard the previous nets:
+  self:debug("Discarding previous networks")
+  self._nets = {}
 
   -- Send a reply to state that we need train_size samples to start training
   self:debug("Sending request for ", opt.train_size, " training samples.");
   self:sendData{"request_samples",opt.train_size}
   -- self:sendData{"request_samples",10}
-
-  -- Here we can also prepare the complete system initialization/re-initialization.
-
 end
 
 local handlers = {
