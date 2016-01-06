@@ -1,7 +1,7 @@
 
 # method used to evaluate a compound model
 
-evaluate_compound_model <- function(files,nsteps=50)
+evaluate_compound_model <- function(files,nsteps=50, offset=NULL)
 {
   levels <- seq(from=0.0, to=0.9, by=0.1)
   evals <- data.frame(siglevel=levels)
@@ -38,6 +38,12 @@ evaluate_compound_model <- function(files,nsteps=50)
   # only keep the data under the step given by nsteps
   # df <- filter(df, eval_index > 1 & eval_index <= nsteps)
   df <- filter(df, eval_index == nsteps)
+  
+  # apply the offset if provided:
+  if(!is.null(offset))
+  {
+    df <- df[-c(1:offset),]  
+  }
   
   # from the predictions and the labels we must substract 0.5 and mult by 2:
   df <- mutate(df, pred = (meanPred-0.5)*2, lbl = (label-0.5)*2)

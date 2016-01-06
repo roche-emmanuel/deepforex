@@ -848,9 +848,9 @@ function Class:evaluate(opt, tdesc)
   local x = tdesc.features:narrow(1,index, opt.seq_length)
   local y = tdesc.labels:narrow(1,index, opt.seq_length)
 
-  self:debug("Evaluating from feature index ",index)
-  self:debug("First Evaluation label: ", y[opt.seq_length])
-  self:debug("Previous label: ", y[opt.seq_length-1])
+  -- self:debug("Evaluating from feature index ",index)
+  -- self:debug("First Evaluation label: ", y[opt.seq_length])
+  -- self:debug("Previous label: ", y[opt.seq_length-1])
 
   ------------------- forward pass -------------------
   local rnn_state = {[0] = tdesc.global_eval_state}
@@ -1217,8 +1217,8 @@ function Class:performTrainSession(opt, tdesc)
   local lastx = tdesc.x_batches[tdesc.ntrain_per_epoch]
   local lasty = tdesc.y_batches[tdesc.ntrain_per_epoch]
   -- self:debug("Last train xbatch: ", lastx)
-  self:debug("Previous train label: ", lasty[opt.seq_length-1][opt.batch_size])
-  self:debug("Last train label: ", lasty[opt.seq_length][opt.batch_size])
+  -- self:debug("Previous train label: ", lasty[opt.seq_length-1][opt.batch_size])
+  -- self:debug("Last train label: ", lasty[opt.seq_length][opt.batch_size])
 
 	tdesc.eval_losses = tdesc.eval_losses or {}
   tdesc.correct_signs = tdesc.correct_signs or {}
