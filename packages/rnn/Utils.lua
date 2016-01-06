@@ -556,12 +556,15 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
   CHECK(opt.num_remas,"Invalid num_emas")
   CHECK(opt.rsi_period,"Invalid rsi_period")
   CHECK(opt.log_return_offsets,"Invalid log_return_offsets")
-  CHECK(opt.feature_offset,"Invalid feature_offset")
+  CHECK(opt.feature_offset or opt.warmup_offset,"Invalid feature_offset")
+  CHECK(opt.num_input_symbols,"Invalid num_input_symbols")
+
+  local warmup_offset = opt.warmup_offset or opt.feature_offset
 
   self:debug("Generating log return features")
 
   -- Retrive the number of symbols:
-  local nsym = self:getNumSymbols(opt,prices)
+  local nsym = opt.num_input_symbols
 
   -- print("Initial prices: ", prices:narrow(1,1,10))
 
@@ -633,10 +636,10 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
 
   -- remove the start offset lines of the features:
   -- print("Feature before norm: ",features:narrow(1,1,10))
-  features = features:sub(1+opt.feature_offset,-1)
+  features = features:sub(1+warmup_offset,-1)
 
   if timetags then
-    timetags = timetags:sub(1+opt.feature_offset,-1)
+    timetags = timetags:sub(1+warmup_offset,-1)
     CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size.")
   end
 
@@ -684,7 +687,7 @@ function Class:generateLogReturnLabels(opt, features, timetags)
   local idx = offset+opt.forcast_index
   local labels = features:sub(2,-1,idx,idx)
 
-  --  Should remove the last row from the features:
+  -- Should remove the last row from the features:
   features = features:sub(1,-2)
   if timetags then
     timetags = timetags:sub(1,-2)

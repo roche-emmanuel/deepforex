@@ -114,6 +114,8 @@ local nsym = utils:getNumSymbols(opt,raw_inputs)
 log:debug("Detected ",nsym," symbols in raw inputs.")
 
 
+opt.num_input_symbols = nsym
+
 -- Now we can build the features tensor:
 local features, timetags = utils:generateLogReturnFeatures(opt, raw_inputs, timetags)
 

@@ -10,7 +10,8 @@ generateRawInputs <- function(path = "2015_12",symbols=NULL, suffix = "", startO
   if(is.null(symbols)) {
     print("Using default input symbol list.")
     #symbols = c("EURUSD","AUDUSD","GBPUSD","NZDUSD","USDCAD","USDCHF","USDJPY")
-    symbols = c("EURUSD","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD")
+    #symbols = c("EURUSD","EURAUD","EURCAD","EURCHF","EURGBP","EURJPY","EURNZD")
+    symbols = c("EURUSD")
   }
   # period to consider:
   period <- "M1"
