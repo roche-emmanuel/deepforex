@@ -64,6 +64,20 @@ function Class:handleSingleInput(data)
   local tag = table.remove(data,1)
   -- self:debug("Received timetag: ", tag)
   -- self:debug("Received data: ", data)
+  CHECK(#data==self._nf,"Mismatch in number of features")
+
+  -- move the previous samples one "step up":
+  self._timetags[{{1,-2}}] = self._timetags[{{2,-1}}]
+  self._rawInputs[{{1,-2},{}}] = self._rawInputs[{{2,-1},{}}]
+
+  -- Write the data into the last row:
+  self._timetags[-1] = tonumber(tag);
+  for i=1,self._nf do 
+    self._rawInputs[-1][i] = tonumber(data[i])
+  end
+
+  -- Increment the sample count:
+  self._numSamples = self._numSamples + 1
 
   -- Now we need to send a prediction back:
   self:sendData{"prediction",tag,0.0}
@@ -83,6 +97,11 @@ function Class:handleMultiInputs(data)
   CHECK(nf==self._nf,"Mismatch in number of features: ",nf,"!=",self._nf)
   CHECK(nrows<=self._trainSize,"Received too many samples: ",nrows,">=",self._trainSize)
 
+  if nrows<self._trainSize then
+    self._timetags[{{1,-1-nrows}}] = self._timetags[{{1+nrows,-1}}]
+    self._rawInputs[{{1,-1-nrows},{}}] = self._rawInputs[{{1+nrows,-1},{}}]
+  end
+
   -- Read all the data in a tensor:
   -- We can use a sub part of the raw inputs/timetags tensors:
 
@@ -92,7 +111,7 @@ function Class:handleMultiInputs(data)
   CHECK(#data==(nrows*(nf+1)),"Invalid data size: ", #data, "!=", nrows*(nf+1))
 
   -- self:debug("Received data: ",data)
-  
+
   local idx = 1
   for i=1,nrows do
     sub_timetags[i] = tonumber(data[idx])
@@ -105,6 +124,9 @@ function Class:handleMultiInputs(data)
 
   self:debug("Received sub timetags: ",sub_timetags)
   self:debug("Received sub inputs: ",sub_inputs)
+
+  -- Increment the sample count:
+  self._numSamples = self._numSamples + nrows
 end
 
 --[[
@@ -124,16 +146,23 @@ function Class:handleInit(data)
   self:debug("Creating raw input tensor of size ", opt.train_size , "x", nf )
   self._rawInputs = torch.Tensor(opt.train_size, nf):zero()
 
+  -- Also create the timetag tensor here:
+  self._timetags = torch.LongTensor(opt.train_size):zero()
+
   self._trainSize = opt.train_size
   self._nf = nf
 
-  -- Also create the timetag tensor here:
-  self._timetags = torch.LongTensor(opt.train_size):zero()
+  -- We also store the number of samples received to
+  -- perform the training in a timed fashion:
+  self._numSamples = 0
 
   -- Send a reply to state that we need train_size samples to start training
   self:debug("Sending request for ", opt.train_size, " training samples.");
   self:sendData{"request_samples",opt.train_size}
   -- self:sendData{"request_samples",10}
+
+  -- Here we can also prepare the complete system initialization/re-initialization.
+
 end
 
 local handlers = {
