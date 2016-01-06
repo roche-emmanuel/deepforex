@@ -65,7 +65,7 @@ evaluate_compound_model <- function(files,nsteps=50, offset=NULL)
     
     counts <- c(counts,dim(filt)[1])
     goodsign <- c(goodsign,ratio)
-    corr <- c(corr, cor(filt$meanPred,filt$label))
+    corr <- c(corr, cor(filt$pred,filt$lbl))
   }
     
   evals[paste0("seq_25_count")] <- counts
