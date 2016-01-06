@@ -346,9 +346,25 @@ source ~/scripts/profile.sh
 #   -with_close_only 1 \
 #   -start_offset 0
 
-dforex_screen v40 \
+# dforex_screen v40 \
+#   -data_dir inputs/mt5_2015_12_EURUSD \
+#   -batch_size 40 \
+#   -rnn_size 64 \
+#   -seq_length 15 \
+#   -eval_size 3 \
+#   -max_sessions 1000 \
+#   -max_epochs 4 \
+#   -initial_max_epochs 100 \
+#   -forcast_index 1 \
+#   -seed 123 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 0 \
+#   -print_every 10
+
+dforex_screen v41 \
   -data_dir inputs/mt5_2015_12_EURUSD \
-  -batch_size 40 \
+  -batch_size 100 \
   -rnn_size 64 \
   -seq_length 15 \
   -eval_size 3 \

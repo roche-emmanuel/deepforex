@@ -844,8 +844,13 @@ function Class:evaluate(opt, tdesc)
   tdesc.grad_params:zero()
 
   ------------------ get minibatch -------------------
-  local x = tdesc.features:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
-  local y = tdesc.labels:narrow(1,tdesc.train_offset+tdesc.iteration, opt.seq_length)
+  local index = tdesc.train_offset+tdesc.iteration
+  local x = tdesc.features:narrow(1,index, opt.seq_length)
+  local y = tdesc.labels:narrow(1,index, opt.seq_length)
+
+  self:debug("Evaluating from feature index ",index)
+  self:debug("First Evaluation label: ", y[opt.seq_length])
+  self:debug("Previous label: ", y[opt.seq_length-1])
 
   ------------------- forward pass -------------------
   local rnn_state = {[0] = tdesc.global_eval_state}
@@ -912,7 +917,6 @@ function Class:trainEval(opt, tdesc, x)
 
   ------------------ get minibatch -------------------
   local idx = tdesc.iteration
-
   local x,y;
   if opt.batch_size > 0 then
     x = tdesc.x_batches[idx]
@@ -1210,6 +1214,12 @@ function Class:performTrainSession(opt, tdesc)
 	  end
 	end
 
+  local lastx = tdesc.x_batches[tdesc.ntrain_per_epoch]
+  local lasty = tdesc.y_batches[tdesc.ntrain_per_epoch]
+  -- self:debug("Last train xbatch: ", lastx)
+  self:debug("Previous train label: ", lasty[opt.seq_length-1][opt.batch_size])
+  self:debug("Last train label: ", lasty[opt.seq_length][opt.batch_size])
+
 	tdesc.eval_losses = tdesc.eval_losses or {}
   tdesc.correct_signs = tdesc.correct_signs or {}
   tdesc.evalidx_values = tdesc.evalidx_values or {}
@@ -1225,9 +1235,11 @@ function Class:performTrainSession(opt, tdesc)
   -- note that the first (seq_len-1) observations are taken from the
   -- training set, so we have to account for this offset:
   -- Additionally note that the +1 is done in the loop below directly:
-  tdesc.iteration = opt.train_size - opt.seq_length
+  -- First major error here: the last training sequence started on
+  -- opt.train_size - opt.seq_length **+ 1** 
+  tdesc.iteration = opt.train_size - opt.seq_length + 1
 
-  tdesc.eval_offset = tdesc.eval_offset or (opt.train_size-1)
+  tdesc.eval_offset = tdesc.eval_offset or opt.train_size
 
 	-- Now that we are done with the training part we should evaluate the network predictions:
   self:debug("Starting evaluation at offset position: ", tdesc.eval_offset)

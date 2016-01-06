@@ -37,7 +37,7 @@ evaluate_compound_model <- function(files,nsteps=50)
   # Now we compute the regular statistics:
   # only keep the data under the step given by nsteps
   # df <- filter(df, eval_index > 1 & eval_index <= nsteps)
-  df <- filter(df, eval_index <= nsteps)
+  df <- filter(df, eval_index == nsteps)
   
   # from the predictions and the labels we must substract 0.5 and mult by 2:
   df <- mutate(df, pred = (meanPred-0.5)*2, lbl = (label-0.5)*2)

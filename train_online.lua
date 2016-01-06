@@ -176,7 +176,6 @@ local global_eval_state = utils:createInitState(opt,1)
 -- Perform parameter initialization:
 local params, grad_params = utils:initParameters(opt, proto)
 
-
 -- Generate the clones from the prototype:
 local clones = utils:generateClones(opt, proto)
 
@@ -212,7 +211,6 @@ for i=1,nsessions do
 
   utils:performTrainSession(opt, tdesc)
   
-
   tdesc.train_offset = tdesc.train_offset + opt.eval_size
 
   -- Now we should write the result arrays:

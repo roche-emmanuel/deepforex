@@ -67,32 +67,27 @@ cmd:option('-seed',123,'torch manual random number generator seed')
 cmd:option('-gpuid',0,'which gpu to use. -1 = use CPU')
 cmd:option('-opencl',0,'use OpenCL (instead of CUDA)')
 
-
--- data
-cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
-
-
-
-cmd:option('-train_size',2000,'Number of steps used for each training session')
-cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
-cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
-cmd:option('-print_every',100,'how many steps/minibatches between printing out the loss')
-
 cmd:option('-learning_rate',2e-3,'learning rate')
 cmd:option('-learning_rate_decay',0.97,'learning rate decay')
 cmd:option('-learning_rate_decay_after',10,'in number of epochs, when to start decaying the learning rate')
 cmd:option('-decay_rate',0.95,'decay rate for rmsprop')
 cmd:option('-max_epochs',1.0,'number of full passes through the training data')
-cmd:option('-initial_max_epochs',3.0,'number of full passes through the training data on the first training session')
-
+cmd:option('-initial_max_epochs',100.0,'number of full passes through the training data on the first training session')
 cmd:option('-accurate_gpu_timing',0,'set this flag to 1 to get precise timings when using GPU. Might make code bit slower but reports accurate timings.')
 cmd:option('-grad_clip',5,'clip gradients at this value')
-cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
-cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
-cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
-cmd:option('-start_offset',0,'Offset applied on raw inputs before training anything')
+cmd:option('-print_every',100,'how many steps/minibatches between printing out the loss')
 
-cmd:option('-optim','rmsprop','Optimization algorithm')
+
+-- data
+-- cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
+-- cmd:option('-train_size',2000,'Number of steps used for each training session')
+-- cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
+-- cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
+-- cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
+-- cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
+-- cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
+-- cmd:option('-start_offset',0,'Offset applied on raw inputs before training anything')
+-- cmd:option('-optim','rmsprop','Optimization algorithm')
 
 cmd:text()
 
