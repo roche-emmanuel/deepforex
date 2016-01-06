@@ -370,7 +370,7 @@ dforex_screen v41 \
   -eval_size 3 \
   -max_sessions 1000 \
   -max_epochs 4 \
-  -initial_max_epochs 100 \
+  -initial_max_epochs 300 \
   -forcast_index 1 \
   -seed 123 \
   -with_timetag 1 \

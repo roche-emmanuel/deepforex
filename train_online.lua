@@ -196,9 +196,6 @@ local max_epochs = opt.max_epochs
 
 local suffix = opt.suffix
 
--- For now try to keep the global eval state for subsequent calls:
-tdesc.global_eval_state = utils:cloneList(global_eval_state,true)
-
 local total_elapsed = 0
 for i=1,nsessions do
   
@@ -210,6 +207,9 @@ for i=1,nsessions do
 
   -- No init state influence between training sessions:
   tdesc.global_init_state = utils:cloneList(global_init_state,true)
+
+  -- For now try to keep the global eval state for subsequent calls:
+  tdesc.global_eval_state = utils:cloneList(global_eval_state,true)
 
   utils:performTrainSession(opt, tdesc)
   

@@ -895,7 +895,7 @@ function Class:evaluate(opt, tdesc)
   -- loss = loss / opt.seq_length
 
   -- Update the global init state:
-	tdesc.global_eval_state = rnn_state[1]
+	-- tdesc.global_eval_state = rnn_state[1]
 
   pred = pred:storage()[1]
   local yval = y[{len,1}]
