@@ -996,10 +996,12 @@ function Class:trainEval(opt, tdesc, x)
   -- local src = rnn_state[#rnn_state]
   -- also note that we start from the state 1 for this global state too as we will
   -- take the first (seq_len - 1) element for the first sequence from the training set.
-  local src = rnn_state[1]
-  for k,tens in ipairs(src) do
-    tdesc.global_eval_state[k] = tens[bsize]
-  end
+
+  -- For now, we do not assign any evaluation state at all:
+  -- local src = rnn_state[1]
+  -- for k,tens in ipairs(src) do
+  --   tdesc.global_eval_state[k] = tens[bsize]
+  -- end
 
   -- tdesc.global_init_state = rnn_state[#rnn_state] -- NOTE: I don't think this needs to be a clone, right?
   -- self._grad_params:div(opt.seq_length) -- this line should be here but since we use rmsprop it would have no effect. Removing for efficiency
