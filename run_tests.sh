@@ -442,21 +442,37 @@ source ~/scripts/profile.sh
 #   -with_timetag 1 \
 #   -with_close_only 1
 
-dforex_screen v43 \
+dforex_screen_d v42e \
   -data_dir inputs/mt5_2015_12 \
-  -num_layers 3 \
-  -rnn_size 256 \
-  -seq_length 40 \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
   -batch_size 80 \
   -eval_size 10 \
   -max_sessions 1000 \
-  -max_epochs 20 \
-  -initial_max_epochs 400 \
+  -max_epochs 15 \
+  -initial_max_epochs 100 \
   -log_return_offsets 3 \
   -forcast_index 1 \
-  -seed 123 \
+  -seed 127 \
   -with_timetag 1 \
   -with_close_only 1
+
+# dforex_screen v43 \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_layers 3 \
+#   -rnn_size 256 \
+#   -seq_length 40 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 20 \
+#   -initial_max_epochs 400 \
+#   -log_return_offsets 3 \
+#   -forcast_index 1 \
+#   -seed 123 \
+#   -with_timetag 1 \
+#   -with_close_only 1
