@@ -77,6 +77,7 @@ cmd:option('-num_remas',0,'Number of return EMA features generated for each symb
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 cmd:option('-rsi_period',0,'Period to use for RSI of 0 if disabled')
 cmd:option('-log_return_offsets',"",'list of comma separated offset values that should be used to compute additional log return features')
+cmd:option('-log_return_ema_period',-1,'EMA period for additional log returns')
 cmd:option('-feature_offset',20,'Offset applied at the start of the features tensor before starting the training process')
 cmd:option('-with_timetag',0,'Set this to 1 if the raw inputs dataset provides a timetag column')
 cmd:option('-with_close_only',0,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')

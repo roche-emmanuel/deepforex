@@ -511,20 +511,39 @@ source ~/scripts/profile.sh
 #   -with_close_only 1 \
 #   -start_offset 10000
 
-dforex_screen_d v45 \
+# dforex_screen v45 \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 300 \
+#   -log_return_offsets 10 \
+#   -log_return_ema_period 5 \
+#   -forcast_index 2 \
+#   -seed 123 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 0 \
+#   -label_offset 10
+
+dforex_screen v45b \
   -data_dir inputs/mt5_2015_12 \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
   -batch_size 80 \
   -eval_size 10 \
-  -max_sessions 10000 \
+  -max_sessions 1000 \
   -max_epochs 15 \
   -initial_max_epochs 300 \
   -log_return_offsets 10 \
   -log_return_ema_period 5 \
   -forcast_index 2 \
-  -seed 123 \
+  -seed 124 \
   -with_timetag 1 \
   -with_close_only 1 \
   -start_offset 0 \
