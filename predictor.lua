@@ -55,9 +55,11 @@ cmd:option('-num_remas',2,'Number of return EMA features generated for each symb
 cmd:option('-ema_base_period',5,'Base period for the EMA addition')
 cmd:option('-rsi_period',9,'Period to use for RSI of 0 if disabled')
 cmd:option('-log_return_offsets',"3",'list of comma separated offset values that should be used to compute additional log return features')
+cmd:option('-log_return_ema_period',-1,'EMA period for additional log returns')
 cmd:option('-warmup_offset',20,'Offset applied at the start of the features tensor before starting the training process')
 cmd:option('-forcast_index',1,'Index of the feature that should be forcasted.')
 cmd:option('-num_classes',1,'Number of classes to consider when performing classification.')
+cmd:option('-label_offset',1,'Offset to apply when generating the labels')
 
 cmd:option('-num_networks',5,'Number of networks that should be trained in parallel by this predictor')
 cmd:option('-train_frequency',1,'Frequency at which we try to perform a training (in number of samples received)')

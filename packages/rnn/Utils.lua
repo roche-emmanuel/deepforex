@@ -415,7 +415,7 @@ Function: computeLogReturn
 Method used to compute a log return of a given price vector 
 with a provided offset
 ]]
-function Class:computeLogReturn(vec, offset)
+function Class:computeLogReturn(vec, offset, period)
   self:debug("Feature ",self._idx,": Log return with offset ",offset)
 
   -- Prepare the result vector:
@@ -428,6 +428,16 @@ function Class:computeLogReturn(vec, offset)
 
   -- Also take the log:
   res:log()
+
+  if period and period>1 then
+    local mult =  (2 / (period + 1))
+    local ema = res:storage()[1]
+    
+    res:apply(function(x)
+      ema = (x-ema)*mult + ema
+      return ema
+    end)    
+  end
 
   -- Normalize the feature:
   self:normalizeFeature(res)
@@ -556,6 +566,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
   CHECK(opt.num_remas,"Invalid num_emas")
   CHECK(opt.rsi_period,"Invalid rsi_period")
   CHECK(opt.log_return_offsets,"Invalid log_return_offsets")
+  CHECK(opt.log_return_ema_period,"Invalid log_return_ema_period")
   CHECK(opt.feature_offset or opt.warmup_offset,"Invalid feature_offset")
   CHECK(opt.num_input_symbols,"Invalid num_input_symbols")
 
@@ -578,6 +589,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
   local rsiPeriod = opt.rsi_period
   local numRSI = (rsiPeriod>0 and 1 or 0)
   local logOffsets = self:split(opt.log_return_offsets)
+  local logEMAPeriod = opt.log_return_ema_period
   local numLogOffsets = #logOffsets
 
   local nf = 2+nsym + nsym*numEMAs + nsym*numREMAs + nsym*numRSI + nsym*numLogOffsets
@@ -610,7 +622,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
     -- Also generate the additional log returns for each symbol:
     for j=1,numLogOffsets do
       loff = logOffsets[j]
-      features[{{},offset+self._idx}] = self:computeLogReturn(cprices,loff) 
+      features[{{},offset+self._idx}] = self:computeLogReturn(cprices,loff,logEMAPeriod) 
     end
 
     -- Also generate the EMAs for each symbol:
@@ -676,6 +688,7 @@ function Class:generateLogReturnLabels(opt, features, timetags)
   self:debug("Generating log return labels")
   CHECK(opt.forcast_index,"Invalid forcast_index")
   CHECK(opt.num_classes,"Invalid num_classes")
+  CHECK(opt.label_offset>0,"Invalid label_offset")
 
   -- Now generate the desired labels:
   -- The label is just the next value of the sigmoid transformed log returns
@@ -685,12 +698,12 @@ function Class:generateLogReturnLabels(opt, features, timetags)
 
   local offset = 2
   local idx = offset+opt.forcast_index
-  local labels = features:sub(2,-1,idx,idx)
+  local labels = features:sub(1+opt.label_offset,-1,idx,idx)
 
   -- Should remove the last row from the features:
-  features = features:sub(1,-2)
+  features = features:sub(1,-1-opt.label_offset)
   if timetags then
-    timetags = timetags:sub(1,-2)
+    timetags = timetags:sub(1,-1-opt.label_offset)
     CHECK(timetags:size(1)==features:size(1),"Mismatch with timetags size: ",timetags:size(1),"!=",features:size(1) )
   end
 
@@ -882,6 +895,7 @@ function Class:evaluate(opt, tdesc)
     -- override the prediction value each time: we only need the latest one:
     pred = lst[#lst]
 
+
     -- predictions[t] = lst[#lst] -- last element is the prediction
     -- self:debug("predictions[",t,"] dims= ",predictions[t]:nDimension(),": ",predictions[t]:size(1),"x",predictions[t]:size(2))
     -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
@@ -889,6 +903,7 @@ function Class:evaluate(opt, tdesc)
     -- loss = loss + tdesc.clones.criterion[t]:forward(predictions[t], y[t])
     -- self:debug("New loss value: ",loss)
   end
+
 
 	-- The loss should only be considered on the latest prediction:
 	loss = tdesc.clones.criterion[len]:forward(pred, y[len])
@@ -902,6 +917,9 @@ function Class:evaluate(opt, tdesc)
     tdesc.global_eval_state[k] = tens:clone()
   end
 
+  -- if we use a classifier, then we should extract the classification weights:
+  -- self:debug("Prediction are: ", pred)
+  
   pred = pred:storage()[1]
   local yval = y[{len,1}]
 
