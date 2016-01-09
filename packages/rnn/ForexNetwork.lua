@@ -31,6 +31,8 @@ function Class:initialize(options)
   -- Network is not ready initially:
   self._isReady = false
 
+  self._isTraining = false;
+
   local opt = self.opt
 
   -- Create the RNN prototype:
@@ -42,8 +44,8 @@ function Class:initialize(options)
   self._initState = utils:createInitState(opt)
 
   -- We also keep a reference on a global init state table:
-  self:debug("Creating global train state")
-  self._globalTrainState = utils:cloneList(self._initState)
+  -- self:debug("Creating global train state")
+  -- self._globalTrainState = utils:cloneList(self._initState)
 
   -- also prepare a dedicated evaluation state:
   self:debug("Creating global eval state")
@@ -65,6 +67,15 @@ Check if this network is ready for usage
 ]]
 function Class:isReady()
   return self._isReady
+end
+
+--[[
+Function: getID
+
+Retrieve the ID of this network
+]]
+function Class:getID()
+  return self._id
 end
 
 --[[
@@ -95,11 +106,13 @@ function Class:trainEval(x)
   -- observing dimensions of seq_length x batch_size below:
   -- print("x dimensions: ",x:size(1),"x",x:size(2))
   -- print("y dimensions: ",y:size(1),"x",y:size(2))
-  local bsize = opt.batch_size > 0 and opt.batch_size or 1
+  local bsize = opt.batch_size
 
   for t=1,opt.seq_length do
     self._clones.rnn[t]:training() -- make sure we are in correct mode (this is cheap, sets flag)
-    local input = bsize == 1 and x:narrow(1,t,1) or x[t]
+    local input = x[t]
+
+    -- self:debug("input size: ", input:size())
 
     local lst = self._clones.rnn[t]:forward{input, unpack(rnn_state[t-1])}
 
@@ -330,7 +343,17 @@ function Class:performTrainingSession()
   end
 
   self._isTraining = false
+  self._isReady = true
   self:debug("Training done.")
+end
+
+--[[
+Function: isTraining
+
+Check if this network is currently training
+]]
+function Class:isTraining()
+  return self._isTraining
 end
 
 --[[
@@ -356,6 +379,9 @@ function Class:train(features,labels,timetags)
   self._session = self._session + 1
   self:debug("Training on session ", self._session)
 
+  -- No init state influence between training sessions:
+  self._globalTrainState = utils:cloneList(self._initState,true)
+
   self._isTraining = true
 
   -- This method should be called in an auxiliary thread.
@@ -367,22 +393,44 @@ Function: evaluate
 
 Use to evaluate the prediction of the network on a given feature sequence
 ]]
-function Class:evaluate(features)
-  tdesc.grad_params:zero()
+function Class:evaluate(features,labels)
+  CHECK(self._isReady,"Trying to evaluate a not ready network")
 
-  ------------------ get minibatch -------------------
-  local index = tdesc.train_offset+tdesc.iteration
-  local x = tdesc.features:narrow(1,index, opt.seq_length)
-  local y = tdesc.labels:narrow(1,index, opt.seq_length)
+  if self._isTraining then
+    self:debug("Network ", self._id," currently training: returning 0 for evaluation.")
+    
+    -- Yet we still have to keep track of this evaluation request, to execute it later,
+    -- ant thus update the global evaluation state.
+    self._pendingEvals = self._pendingEvals or {}
+    table.insert(self._pendingEvals, features:clone())
+    return 0.0
+  end
 
-  -- self:debug("Evaluating from feature index ",index)
-  -- self:debug("First Evaluation label: ", y[opt.seq_length])
-  -- self:debug("Previous label: ", y[opt.seq_length-1])
+  -- process any pending evaluation:
+  if self._pendingEvals then
+
+    -- displace the table to avoid infinite loop:
+    local previous = self._pendingEvals
+    -- Now remove the pendingEvals:
+    self._pendingEvals = nil
+
+    for _,feats in ipairs(previous) do
+      self:evaluate(feats)
+    end
+  end
+
+  self._gradParams:zero()
+
+  local opt = self.opt
+
+  -- the x and y to use are the features and labels we received:
+  local x = features;
+  local y = labels; -- this may be nil
 
   ------------------- forward pass -------------------
-  local rnn_state = {[0] = tdesc.global_eval_state}
+  local rnn_state = {[0] = self._globalEvalState}
   -- local predictions = {}           -- softmax outputs
-  local loss = 0
+  local loss = nil
   local pred;
 
   -- observing dimensions of seq_length x batch_size below:
@@ -391,8 +439,8 @@ function Class:evaluate(features)
   local len = opt.seq_length
 
   for t=1,len do
-    tdesc.clones.rnn[t]:evaluate() -- make sure we are in correct mode (this is cheap, sets flag)
-    local lst = tdesc.clones.rnn[t]:forward{x:narrow(1,t,1), unpack(rnn_state[t-1])}
+    self._clones.rnn[t]:evaluate() -- make sure we are in correct mode (this is cheap, sets flag)
+    local lst = self._clones.rnn[t]:forward{x:narrow(1,t,1), unpack(rnn_state[t-1])}
 
     -- print("x[".. t.."]:", x[t])
     -- line below will always return #lst=5 (with 2 layers)
@@ -404,7 +452,7 @@ function Class:evaluate(features)
     -- print("Size of init_state: ".. #init_state)
 
     rnn_state[t] = {}
-    for i=1,#tdesc.init_state do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
+    for i=1,#self._initState do table.insert(rnn_state[t], lst[i]) end -- extract the state, without output
 
     -- override the prediction value each time: we only need the latest one:
     pred = lst[#lst]
@@ -414,30 +462,35 @@ function Class:evaluate(features)
     -- self:debug("predictions[",t,"] dims= ",predictions[t]:nDimension(),": ",predictions[t]:size(1),"x",predictions[t]:size(2))
     -- self:debug("y[",t,"] dims= ",y[t]:nDimension(),": ",y[t]:size(1))
 
-    -- loss = loss + tdesc.clones.criterion[t]:forward(predictions[t], y[t])
+    -- loss = loss + self._clones.criterion[t]:forward(predictions[t], y[t])
     -- self:debug("New loss value: ",loss)
   end
 
-
-  -- The loss should only be considered on the latest prediction:
-  loss = tdesc.clones.criterion[len]:forward(pred, y[len])
-  -- loss = loss / opt.seq_length
+  -- Compute the loss if the corresponding label is provided
+  -- but do not complain otherwise:
+  if y then
+    -- The loss should only be considered on the latest prediction:
+    loss = self._clones.criterion[len]:forward(pred, y[len])
+    -- loss = loss / opt.seq_length
+  end
 
   -- Update the global init state:
   -- tdesc.global_eval_state = rnn_state[1]
   -- clone the tensor to ensure we get a separated copy:
   local src = rnn_state[1]
   for k,tens in ipairs(src) do
-    tdesc.global_eval_state[k] = tens:clone()
+    self._globalEvalState[k] = tens:clone()
   end
 
-  -- if we use a classifier, then we should extract the classification weights:
-  -- self:debug("Prediction are: ", pred)
-  
+  -- if we use a classifier, then we should extract the classification weights:  
   pred = pred:storage()[1]
-  local yval = y[{len,1}]
 
-  return loss, pred, yval 
+  local yval = nil 
+  if y then
+    yval = y[{len,1}]
+  end
+
+  return pred, loss, yval 
 end
 
 return Class

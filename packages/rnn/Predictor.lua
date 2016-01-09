@@ -113,8 +113,24 @@ function Class:performTraining()
     self._nets[self._trainNet] = net
   end
 
+  self:debug("Training network ", self._trainNet)
+
   -- Now that we have a network, we can request a training on it
   net:train(self._features, self._labels, self._timetags)
+end
+
+--[[
+Function: getNetworkPrediction
+
+Retrieve the current prediction of a given network for the
+current evaluation features:
+]]
+function Class:getNetworkPrediction(network)
+  CHECK(network:isReady(),"Network ", network:getID()," is not ready!")
+  CHECK(self._evalFeatures,"Invalid evaluation features.")
+
+  -- Otherwise we can request the prediction:
+  return network:evaluate(self._evalFeatures)
 end
 
 --[[
@@ -123,8 +139,24 @@ Function: getPrediction
 Method used to retrieve the current prediction
 ]]
 function Class:getPrediction()
-  -- TODO provide implementation
-  return 0.0
+  -- Iterate on all the available networks:
+  local result = 0.0;
+  local count = 0;
+
+  for k,net in ipairs(self._nets) do
+    local pred = self:getNetworkPrediction(net)
+    if pred then
+      pred = (pred-0.5)*2.0
+      self:debug("Prediction from network ", k,": ",pred)
+      result = result + pred;
+      count = count + 1
+    end
+  end
+
+  result = count==0 and 0.0 or result/count
+  self:debug("Global prediction: ",result)
+
+  return result
 end
 
 --[[
@@ -160,7 +192,7 @@ function Class:handleSingleInput(data)
   -- retrieve the current prediction if any:
   local pred = self:getPrediction()
 
-  self:debug("Current prediction: ",pred)
+  -- self:debug("Current prediction: ",pred)
 
   -- Now we need to send a prediction back:
   self:sendData{"prediction",tag,pred}
@@ -326,8 +358,10 @@ function Class:updateFeatures(num)
   -- Prepare the evaluation features:
   if not self._evalFeatures then
     self._evalFeatures = torch.Tensor(opt.seq_length,self:getNumFeatures()):zero()
+    -- Preprocess this tensor on GPU if needed:
+    self._evalFeatures = utils:prepro(opt,self._evalFeatures)
   end
-  
+
   if not self._evalTimetags then
     self._evalTimetags = torch.LongTensor(opt.seq_length):zero()
   end
@@ -340,8 +374,8 @@ function Class:updateFeatures(num)
   -- Thus, before removing this row we want to copy the current features/timetag for evaluation
   -- later:
 
-  self:debug("EvalFeatures size: ", self._evalFeatures:size())
-  self:debug("Features subset size: ", (features[{{-opt.seq_length,-1},{}}]):size())
+  -- self:debug("EvalFeatures size: ", self._evalFeatures:size())
+  -- self:debug("Features subset size: ", (features[{{-opt.seq_length,-1},{}}]):size())
 
   self._evalFeatures[{}] = features[{{-opt.seq_length,-1},{}}]
   self._evalTimetags[{}] = timetags[{{-opt.seq_length,-1}}]
