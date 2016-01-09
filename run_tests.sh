@@ -614,7 +614,7 @@ dforex_screen v47 \
   -num_emas 1 \
   -rsi_period 9 \
   -batch_size 80 \
-  -eval_size 5 \
+  -eval_size 10 \
   -max_sessions 1000 \
   -max_epochs 15 \
   -initial_max_epochs 300 \
