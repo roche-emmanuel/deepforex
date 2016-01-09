@@ -663,7 +663,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
 end
 
 -- preprocessing helper function
-function prepro(opt, x)
+function Class:prepro(opt, x)
   -- x = x:transpose(1,2):contiguous() -- swap the axes for faster indexing
   x = x:contiguous() -- swap the axes for faster indexing
   
@@ -678,6 +678,7 @@ function prepro(opt, x)
 
   return x
 end
+
 
 --[[
 Function: generateLogReturnLabels
@@ -1087,8 +1088,8 @@ function Class:prepareMiniBatchFeatures(opt, tdesc)
       ybatch[t] = ymat
     end
 
-    table.insert(x_batches,prepro(opt,xbatch))
-    table.insert(y_batches,prepro(opt,ybatch))
+    table.insert(x_batches,self:prepro(opt,xbatch))
+    table.insert(y_batches,self:prepro(opt,ybatch))
     
     offset = offset + 1    
   end
@@ -1148,8 +1149,8 @@ function Class:performTrainSession(opt, tdesc)
   -- Upload the raw features/labels if needed:
   -- but we keep a CPU version untouched as we might need it
   -- to generate the subsequent x/y batches.
-  tdesc.features = prepro(opt,tdesc.raw_features:clone())
-  tdesc.labels = prepro(opt,tdesc.raw_labels:clone())
+  tdesc.features = self:prepro(opt,tdesc.raw_features:clone())
+  tdesc.labels = self:prepro(opt,tdesc.raw_labels:clone())
 
   tdesc.ntrain_per_epoch = ntrain_by_epoch
 

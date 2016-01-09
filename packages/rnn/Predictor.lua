@@ -68,19 +68,27 @@ function Class:sendData(data)
 end
 
 --[[
+Function: hasEnoughSamples
+
+Used to check if we received enough samples already to start training/predicting.
+]]
+function Class:hasEnoughSamples()
+  return self._numSamples >= self._rawInputSize
+end
+
+--[[
 Function: performTraining
 
 Method used to check if we can perform a training session
 ]]
 function Class:performTraining()
+  self:debug("Entering performTraining()")
+
   -- if we don't have enough samples, we don't train anything:
-  if self._numSamples < self._rawInputSize then
+  if not self:hasEnoughSamples() then
     self:debug("Not performing training: only have ", self._numSamples," samples")
     return
   end
-
-  -- Update the features here:
-  self:updateFeatures()
 
   -- Check if we should perform a training:
   if ((self._numSamples - self._rawInputSize) % self._trainFreq) ~= 0 then
@@ -131,7 +139,7 @@ function Class:handleSingleInput(data)
   local tag = table.remove(data,1)
   -- self:debug("Received timetag: ", tag)
   -- self:debug("Received data: ", data)
-  CHECK(#data==self._nf,"Mismatch in number of features")
+  CHECK(#data==self._numRawInputs,"Mismatch in number of features")
 
   -- move the previous samples one "step up":
   self._rawTimetags[{{1,-2}}] = self._rawTimetags[{{2,-1}}]
@@ -139,12 +147,12 @@ function Class:handleSingleInput(data)
 
   -- Write the data into the last row:
   self._rawTimetags[-1] = tonumber(tag);
-  for i=1,self._nf do 
+  for i=1,self._numRawInputs do 
     self._rawInputs[-1][i] = tonumber(data[i])
   end
 
-  -- Increment the sample count:
-  self._numSamples = self._numSamples + 1
+  -- Update the feature tensor:
+  self:updateFeatures(1)
 
   -- check if we can perform a training session:
   self:performTraining()
@@ -169,7 +177,7 @@ function Class:handleMultiInputs(data)
   local nf = tonumber(table.remove(data,1))-1
 
   self:debug("Received multiple inputs: ", nrows,"x",nf+1)
-  CHECK(nf==self._nf,"Mismatch in number of features: ",nf,"!=",self._nf)
+  CHECK(nf==self._numRawInputs,"Mismatch in number of features: ",nf,"!=",self._numRawInputs)
   CHECK(nrows<=self._rawInputSize,"Received too many samples: ",nrows,">=",self._rawInputSize)
 
   if nrows<self._rawInputSize then
@@ -199,9 +207,7 @@ function Class:handleMultiInputs(data)
 
   -- self:debug("Received sub timetags: ",sub_timetags)
   -- self:debug("Received sub inputs: ",sub_inputs)
-
-  -- Increment the sample count:
-  self._numSamples = self._numSamples + nrows
+  self:updateFeatures(nrows)
 
   -- check if we can perform a training session:
   self:performTraining()
@@ -215,26 +221,26 @@ Method used to perform the initialization of the predictor
 function Class:handleInit(data)
   -- For now we assume that the initialization data will only contain:
   -- 1. the number of features.
-  local nf = tonumber(data[1])
-  self:debug("Initializing with ",nf," features")
+  local ni = tonumber(data[1])
+  self:debug("Initializing with ",ni," raw inputs")
 
   local opt = self.opt
-
-  -- But the raw input tensor:
-  self:debug("Creating raw input tensor of size ", opt.train_size , "x", nf )
-  self._rawInputs = torch.Tensor(opt.train_size, nf):zero()
-
-  -- Also create the timetag tensor here:
-  self._rawTimetags = torch.LongTensor(opt.train_size):zero()
 
   -- The raw input size should account for the warm_up period and the last
   -- rows that will be removed from the features to built the labels:
   self._rawInputSize = opt.train_size + opt.warmup_offset + 1
-  self._nf = nf
+  self:debug("Raw input size: ", self._rawInputSize)
 
-  -- Also update the number of inputs/outputs for the networks here:
-  self.opt.num_inputs = nf
-  self.opt.num_outputs = self.opt.num_classes
+  -- Also store the number of features:
+  self._numRawInputs = ni
+
+  -- But the raw input tensor:
+  self:debug("Creating raw input tensor of size ", self._rawInputSize , "x", ni )
+  self._rawInputs = torch.Tensor(self._rawInputSize, ni):zero()
+
+  -- Also create the timetag tensor here:
+  self:debug("Creating timetag tensor of size ", self._rawInputSize )
+  self._rawTimetags = torch.LongTensor(self._rawInputSize):zero()
 
   -- We also store the number of samples received to
   -- perform the training in a timed fashion:
@@ -244,9 +250,16 @@ function Class:handleInit(data)
   self:debug("Discarding previous networks")
   self._nets = {}
 
-  -- Prepare the evaluation features:
-  self._evalFeatures = torch.Tensor(opt.seq_length,self:getNumFeatures()):zero()
-  self._evalTimetags = torch.LongTensor(opt.seq_length):zero()
+  -- Reset the number of input/outputs:
+  self.opt.num_inputs = nil
+  self.opt.num_outputs = nil
+
+  -- Reset the eval tensor:
+  self._evalFeatures = nil
+  self._evalTimetags = nil
+
+  -- Reset number of features:
+  self._nf = nil
 
   -- Send a reply to state that we need train_size samples to start training
   self:debug("Sending request for ", opt.train_size, " training samples.");
@@ -255,12 +268,22 @@ function Class:handleInit(data)
 end
 
 --[[
-Function: getNumFeatures
+Function: getNumRawInputs
 
 Method used to retrieve the number of features
 ]]
+function Class:getNumRawInputs()
+  CHECK(self._numRawInputs,"Not initialized yet.")
+  return self._numRawInputs
+end
+
+--[[
+Function: getNumFeatures
+
+Retrieve the number of features if available
+]]
 function Class:getNumFeatures()
-  CHECK(self._nf,"Not initialized yet.")
+  CHECK(self._nf,"Number of features not initialized.")
   return self._nf
 end
 
@@ -271,8 +294,19 @@ Method used to update the current features/timetags
 This is done each time we receive a new sample raw, provided we
 have enough data
 ]]
-function Class:updateFeatures()
-  self:debug("Updating features at num samples ", self;_numSamples)
+function Class:updateFeatures(num)
+
+  self:debug("Entering updateFeatures()")
+
+  -- Increment the sample count:
+  self._numSamples = self._numSamples + num
+
+  if not self:hasEnoughSamples() then
+    -- We cannot prepare the features yet.
+    return;
+  end
+
+  self:debug("Updating features at num samples ", self._numSamples)
 
   local opt = self.opt
   opt.num_input_symbols = self._rawInputs:size(2)-2
@@ -280,6 +314,23 @@ function Class:updateFeatures()
   -- first we need to generate the features from the raw inputs
   -- Now we can build the features tensor:
   local features, timetags = utils:generateLogReturnFeatures(opt, self._rawInputs, self._rawTimetags)
+  CHECK(features,"Invalid features.")
+
+  -- Assign the number of features:
+  self._nf = features:size(2)
+
+  -- Also update the number of inputs/outputs for the networks here:
+  self.opt.num_inputs = self:getNumFeatures()
+  self.opt.num_outputs = self.opt.num_classes
+
+  -- Prepare the evaluation features:
+  if not self._evalFeatures then
+    self._evalFeatures = torch.Tensor(opt.seq_length,self:getNumFeatures()):zero()
+  end
+  
+  if not self._evalTimetags then
+    self._evalTimetags = torch.LongTensor(opt.seq_length):zero()
+  end
 
   -- CRITICAL part:
   -- When we generate the labels below, the last row of the features and timetags tensor
@@ -288,6 +339,9 @@ function Class:updateFeatures()
   -- is at this specific point the inputs sequence we want to use for evaluation!
   -- Thus, before removing this row we want to copy the current features/timetag for evaluation
   -- later:
+
+  self:debug("EvalFeatures size: ", self._evalFeatures:size())
+  self:debug("Features subset size: ", (features[{{-opt.seq_length,-1},{}}]):size())
 
   self._evalFeatures[{}] = features[{{-opt.seq_length,-1},{}}]
   self._evalTimetags[{}] = timetags[{{-opt.seq_length,-1}}]
