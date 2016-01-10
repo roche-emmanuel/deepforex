@@ -572,7 +572,7 @@ function Class:generateLogReturnFeatures(opt,prices,timetags)
 
   local warmup_offset = opt.warmup_offset or opt.feature_offset
 
-  self:debug("Generating log return features")
+  self:debug("Generating log return features...")
 
   -- Retrive the number of symbols:
   local nsym = opt.num_input_symbols
@@ -714,15 +714,15 @@ function Class:generateLogReturnLabels(opt, features, timetags)
     labels = self:generateClasses(labels,0,1,opt.num_classes)
   end
 
-  print("Labels classes: ", labels:narrow(1,1,10))
+  -- print("Labels classes: ", labels:narrow(1,1,10))
   if timetags then
     local vals = {}
     for i = 1,10 do 
       table.insert(vals,timetags[i])
     end
-    print("Final timetags: ", vals)
+    -- print("Final timetags: ", vals)
   end
-  print("Final features: ", features:narrow(1,1,10))
+  -- print("Final features: ", features:narrow(1,1,10))
 
   return features, labels, timetags
 end

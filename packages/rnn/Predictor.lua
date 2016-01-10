@@ -160,6 +160,20 @@ function Class:getPrediction()
 end
 
 --[[
+Function: writeRawInput
+
+Write the raw inputs to a file
+]]
+function Class:writeRawInput(tag,data)
+  -- Open the file for writing:
+  local f = io.open("misc/" .. self.opt.suffix .. "_received_raw_inputs.csv","aw")
+  local msg = tag.. "," .. table.concat(data,",") .. "\n"
+  self:debug("Writing raw input line: ", msg)
+  f:write(msg)
+  f:close()
+end
+
+--[[
 Function: handleSingleInput
 
 Method used to handle a jsut received single input
@@ -172,6 +186,8 @@ function Class:handleSingleInput(data)
   -- self:debug("Received timetag: ", tag)
   -- self:debug("Received data: ", data)
   CHECK(#data==self._numRawInputs,"Mismatch in number of features")
+
+  self:writeRawInput(tag,data)
 
   -- move the previous samples one "step up":
   self._rawTimetags[{{1,-2}}] = self._rawTimetags[{{2,-1}}]
@@ -260,7 +276,7 @@ function Class:handleInit(data)
 
   -- The raw input size should account for the warm_up period and the last
   -- rows that will be removed from the features to built the labels:
-  self._rawInputSize = opt.train_size + opt.warmup_offset + 1
+  self._rawInputSize = opt.train_size + opt.warmup_offset + opt.label_offset
   self:debug("Raw input size: ", self._rawInputSize)
 
   -- Also store the number of features:
@@ -388,7 +404,7 @@ function Class:updateFeatures(num)
   CHECK(features:size(1)==timetags:size(1),"Mismatch in features/timetags sizes")
 
   local nsamples = features:size(1)
-  CHECK(nsamples == (nsamples1-1),"Features tensor was not resized as expected.")
+  CHECK(nsamples == (nsamples1-opt.label_offset),"Features tensor was not resized as expected.")
   
   -- The number of samples we have should match the desired train size:
   CHECK(nsamples==opt.train_size,"Number of samples doesn't match train_size: ", nsamples,"!=",opt.train_size)  
