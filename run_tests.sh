@@ -665,27 +665,47 @@ source ~/scripts/profile.sh
 #   -start_offset 10000 \
 #   -label_offset 10
 
-dforex_screen_d v45d \
-  -data_dir inputs/mt5_2015_12 \
-  -num_remas 2 \
-  -num_emas 1 \
-  -rsi_period 9 \
-  -batch_size 80 \
-  -eval_size 10 \
-  -max_sessions 1000 \
-  -max_epochs 15 \
-  -initial_max_epochs 300 \
-  -log_return_offsets 10 \
-  -log_return_ema_period 5 \
-  -forcast_index 2 \
-  -seed 126 \
-  -with_timetag 1 \
-  -with_close_only 1 \
-  -start_offset 0 \
-  -label_offset 10
+# dforex_screen_d v45d \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 300 \
+#   -log_return_offsets 10 \
+#   -log_return_ema_period 5 \
+#   -forcast_index 2 \
+#   -seed 126 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 0 \
+#   -label_offset 10
 
-dforex_screen_d v45e \
-  -data_dir inputs/mt5_2015_12 \
+# dforex_screen_d v45e \
+#   -data_dir inputs/mt5_2015_12 \
+#   -num_remas 2 \
+#   -num_emas 1 \
+#   -rsi_period 9 \
+#   -batch_size 80 \
+#   -eval_size 10 \
+#   -max_sessions 1000 \
+#   -max_epochs 15 \
+#   -initial_max_epochs 300 \
+#   -log_return_offsets 10 \
+#   -log_return_ema_period 5 \
+#   -forcast_index 2 \
+#   -seed 127 \
+#   -with_timetag 1 \
+#   -with_close_only 1 \
+#   -start_offset 0 \
+#   -label_offset 10
+
+# test similar to v45 but using the multi retriever raw inputs:
+dforex_screen v48 \
+  -data_dir inputs/mt5_2015_12_multiretriever \
   -num_remas 2 \
   -num_emas 1 \
   -rsi_period 9 \
@@ -697,7 +717,7 @@ dforex_screen_d v45e \
   -log_return_offsets 10 \
   -log_return_ema_period 5 \
   -forcast_index 2 \
-  -seed 127 \
+  -seed 123 \
   -with_timetag 1 \
   -with_close_only 1 \
   -start_offset 0 \

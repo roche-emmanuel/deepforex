@@ -86,11 +86,17 @@ cmd:option('-label_offset',1,'Offset to apply when generating the labels')
 
 cmd:option('-optim','rmsprop','Optimization algorithm')
 
-
 cmd:text()
 
 -- parse input params
 opt = cmd:parse(arg)
+
+--  Setup the log system:
+local lm = require "log.LogManager"
+local FileLogger = require "log.FileLogger"
+local sys = require "sys"
+
+lm:addSink(FileLogger{file="train_online_".. opt.suffix ..".log"})
 
 -- Setup the common GPU setup elements:
 utils:setupGPU(opt)
