@@ -49,13 +49,33 @@ function Class:initialize(opt)
   opt.train_size = opt.batch_size*opt.batch_num_seqs*opt.seq_length + (opt.batch_num_seqs*opt.seq_length - 1)
   self:debug("Using minibatches with training size: ", opt.train_size)
 
-  -- Create a new socket as a server:
-  self._socket = zmq.socket(zmq.PAIR)
+  if opt.data_dir then
+    self:debug("Loading data from ", opt.data_dir)
+    -- open the data file:
+    self._dataFile = io.open(opt.data_dir.."/raw_inputs.csv","r")
+    CHECK(self._dataFile,"Invalid data file")
 
-  self._socket:bind("tcp://*:"..opt.local_port)
+    -- Discard the header line:
+    self._dataFile:read()
+
+    -- Perform initialization right here:
+    self:handleInit{9}
+  end
+
+  if opt.with_zmq then
+    -- Create a new socket as a server:
+    self._socket = zmq.socket(zmq.PAIR)
+
+    self._socket:bind("tcp://*:"..opt.local_port)
+  end
 
   -- Start the app:
   self:run()
+
+  -- When done close the data file if any:
+  if self._dataFile then
+    self._dataFile:close()
+  end
 end
 
 --[[
@@ -64,7 +84,20 @@ Function: sendData
 Method used to send data back to MT5
 ]]
 function Class:sendData(data)
-  self._socket:send(table.concat(data,","))
+  if self._socket then
+    self._socket:send(table.concat(data,","))
+  end
+end
+
+--[[
+Function: receiveMessage
+
+Receive a message from socket
+]]
+function Class:receiveMessage()
+  if self._socket then
+    return self._socket:receive()
+  end
 end
 
 --[[
@@ -82,7 +115,7 @@ Function: performTraining
 Method used to check if we can perform a training session
 ]]
 function Class:performTraining()
-  self:debug("Entering performTraining()")
+  -- self:debug("Entering performTraining()")
 
   -- if we don't have enough samples, we don't train anything:
   if not self:hasEnoughSamples() then
@@ -171,6 +204,40 @@ function Class:writeRawInput(tag,data)
   self:debug("Writing raw input line: ", msg)
   f:write(msg)
   f:close()
+end
+
+--[[
+Function: writePrediction
+
+Method used to write the predictions that this predictor is generating:
+]]
+function Class:writePrediction(tag, preds)
+  -- Open the file for writing:
+  local f = io.open("misc/" .. self.opt.suffix .. "_predictions.csv","aw")
+  local msg = tag.. "," .. table.concat(preds,",") .. "\n"
+  self:debug("Writing prediction line: ", msg)
+  f:write(msg)
+  f:close()  
+end
+
+--[[
+Function: writeFeatures
+
+Method used to write the features that this predictor is generating:
+]]
+function Class:writeFeatures(tag,features)
+  -- Open the file for writing:
+  local f = io.open("misc/" .. self.opt.suffix .. "_features.csv","aw")
+  local msg = tag..""
+
+  local len = features:size(2)
+  for i=1,len do
+    msg = msg .. "," .. features[1][i]
+  end
+
+  self:debug("Writing feature line: ", msg)
+  f:write(msg)
+  f:close()  
 end
 
 --[[
@@ -344,7 +411,7 @@ have enough data
 ]]
 function Class:updateFeatures(num)
 
-  self:debug("Entering updateFeatures()")
+  -- self:debug("Entering updateFeatures()")
 
   -- Increment the sample count:
   self._numSamples = self._numSamples + num
@@ -452,7 +519,7 @@ function Class:run()
   local active
   while self._running do 
     -- self:debug("On run iteration...")
-    msg = self._socket:receive()
+    msg = self:receiveMessage()
     active = false
     while msg do
       active = true
@@ -461,7 +528,12 @@ function Class:run()
       -- we have to handle this message:
       self:dispatchMessage(msg)
 
-      msg = self._socket:receive()
+      msg = self:receiveMessage()
+    end
+
+    if self._dataFile then
+      active = true
+      self:readDataInput()
     end
 
     if not active then
@@ -469,6 +541,27 @@ function Class:run()
       sys.sleep(0.002)
     end
   end
+end
+
+--[[
+Function: readDataInput
+
+Read an input from the data file
+]]
+function Class:readDataInput()
+  CHECK(self._dataFile, "Invalid data file")
+
+  local line = self._dataFile:read()
+  if not line then
+    -- Stop running the processor:
+    self._running = false;
+    return
+  end
+
+  -- We have a valid line so we have to send it for processing:
+  -- self:debug("Sending single line for processing: ", line)
+  local data = utils:split(line)
+  self:handleSingleInput(data)
 end
 
 return Class

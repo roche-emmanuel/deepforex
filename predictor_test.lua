@@ -37,6 +37,7 @@ cmd:text('Train an online FOREX trading agent')
 cmd:text()
 cmd:text('Options')
 
+
 -- model params
 cmd:option('-rnn_size', 128, 'size of LSTM internal state')
 cmd:option('-num_layers', 2, 'number of layers in the LSTM')
@@ -44,7 +45,7 @@ cmd:option('-model', 'lstm', 'lstm,gru or rnn')
 cmd:option('-dropout',0.5,'dropout for regularization, used after each RNN hidden layer. 0 = no dropout')
 
 -- app params
-cmd:option('-suffix','vxx','suffix to append to all written files')
+cmd:option('-suffix','test','suffix to append to all written files')
 cmd:option('-local_port',30000,'Local port used for the socket connection')
 
 cmd:option('-batch_size',80,'Number of sequences to train on in parallel or -1 if we use only sequential training')
@@ -81,9 +82,10 @@ cmd:option('-print_every',100,'how many steps/minibatches between printing out t
 cmd:option('-ema_adaptation',0.001,'Moving average adaptation factor')
 cmd:option('-with_close_only',1,'Set this to 1 if the raw inputs dataset only provides the close prices for each symbol')
 
+-- Data path:
+cmd:option('-data_dir','inputs/mt5_2015_12_multiretriever','data directory. Should contain the file input.txt with input data')
 
 -- data
--- cmd:option('-data_dir','inputs/raw_2004_01_to_2007_01','data directory. Should contain the file input.txt with input data')
 -- cmd:option('-train_size',2000,'Number of steps used for each training session')
 -- cmd:option('-eval_size',100,'Number of steps used for each evaluation session')
 -- cmd:option('-max_sessions',200,'Max number of training/eval sessions to perform')
@@ -101,7 +103,8 @@ utils:setupGPU(opt)
 
 local Predictor = require "rnn.Predictor"
 
-opt.with_zmq = true
+-- disable the ZMQ interface
+opt.with_zmq = false
 Predictor(opt)
 
 log:debug("Predictor app done.")
