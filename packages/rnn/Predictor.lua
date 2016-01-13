@@ -171,20 +171,26 @@ Function: getPrediction
 
 Method used to retrieve the current prediction
 ]]
-function Class:getPrediction()
+function Class:getPrediction(tag)
   -- Iterate on all the available networks:
   local result = 0.0;
   local count = 0;
 
+  local preds = {}
   for k,net in ipairs(self._nets) do
     local pred = self:getNetworkPrediction(net)
     if pred then
+      table.insert(preds,pred)
       pred = (pred-0.5)*2.0
       self:debug("Prediction from network ", k,": ",pred)
       result = result + pred;
       count = count + 1
+    else
+      table.insert(preds,0.0)
     end
   end
+
+  self:writePrediction(tag,preds)
 
   result = count==0 and 0.0 or result/count
   self:debug("Global prediction: ",result)
@@ -199,7 +205,7 @@ Write the raw inputs to a file
 ]]
 function Class:writeRawInput(tag,data)
   -- Open the file for writing:
-  local f = io.open("misc/" .. self.opt.suffix .. "_received_raw_inputs.csv","aw")
+  local f = io.open("misc/" .. self.opt.suffix .. "_raw_inputs.csv","aw")
   local msg = tag.. "," .. table.concat(data,",") .. "\n"
   self:debug("Writing raw input line: ", msg)
   f:write(msg)
@@ -230,9 +236,9 @@ function Class:writeFeatures(tag,features)
   local f = io.open("misc/" .. self.opt.suffix .. "_features.csv","aw")
   local msg = tag..""
 
-  local len = features:size(2)
+  local len = features:size(1)
   for i=1,len do
-    msg = msg .. "," .. features[1][i]
+    msg = msg .. "," .. features[i]
   end
 
   self:debug("Writing feature line: ", msg)
@@ -272,8 +278,10 @@ function Class:handleSingleInput(data)
   -- check if we can perform a training session:
   self:performTraining()
 
+  -- prepare the current timetag:
+
   -- retrieve the current prediction if any:
-  local pred = self:getPrediction()
+  local pred = self:getPrediction(tag)
 
   -- self:debug("Current prediction: ",pred)
 
@@ -439,10 +447,12 @@ function Class:updateFeatures(num)
   self.opt.num_outputs = self.opt.num_classes
 
   -- Prepare the evaluation features:
+  local writeAll = false
   if not self._evalFeatures then
     self._evalFeatures = torch.Tensor(opt.seq_length,self:getNumFeatures()):zero()
     -- Preprocess this tensor on GPU if needed:
     self._evalFeatures = utils:prepro(opt,self._evalFeatures)
+    writeAll = true
   end
 
   if not self._evalTimetags then
@@ -463,6 +473,16 @@ function Class:updateFeatures(num)
   self._evalFeatures[{}] = features[{{-opt.seq_length,-1},{}}]
   self._evalTimetags[{}] = timetags[{{-opt.seq_length,-1}}]
   local nsamples1 = features:size(1)
+
+  -- we write the last line of the eval tensor to file:
+  if writeAll then
+    local len = features:size(1)
+    for i=1,len do 
+      self:writeFeatures(timetags[i],features[{i,{}}])
+    end
+  else
+    self:writeFeatures(self._evalTimetags[-1],self._evalFeatures[{-1,{}}])
+  end
 
   -- From the features, we can build the labels tensor:
   -- not that this method will also change the features tensor.
