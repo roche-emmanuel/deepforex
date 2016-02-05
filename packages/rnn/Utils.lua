@@ -862,6 +862,8 @@ function Class:evaluate(opt, tdesc)
   local x = tdesc.features:narrow(1,index, opt.seq_length)
   local y = tdesc.labels:narrow(1,index, opt.seq_length)
 
+  -- self:debug("Evaluating with features tensor: ", x)
+
   -- self:debug("Evaluating from feature index ",index)
   -- self:debug("First Evaluation label: ", y[opt.seq_length])
   -- self:debug("Previous label: ", y[opt.seq_length-1])
@@ -1301,10 +1303,92 @@ function Class:performTrainSession(opt, tdesc)
     end
 
     table.insert(tdesc.correct_signs, tdesc.current_sign)
-		self:debug("Evaluation ",i,": Loss EMA=",tdesc.current_loss,", correct sign EMA=",tdesc.current_sign)
+		-- self:debug("Evaluation ",i,": Loss EMA=",tdesc.current_loss,", correct sign EMA=",tdesc.current_sign)
 	end
+
+  self:evaluatePredictionStats(opt,tdesc)
 end
 
+--[[
+Function: correlation
+
+Compute the correlation between 2 tables of the same length
+]]
+function Class:correlation(a,b)
+  CHECK(#a == #b, "Mismatch in table lengths")
+  local len = #a
+  if len < 3 then
+    return 0.0
+  end
+
+  -- Compute the mean of the arrays:
+  local sa = 0.0
+  local sb = 0.0
+  local sab = 0.0
+  local saa = 0.0
+  local sbb = 0.0
+
+  for i=1,len do
+    sa = sa + a[i]
+    sb = sb + b[i]
+    sab = sab + a[i]*b[i]
+    saa = saa + a[i]*a[i]
+    sbb = sbb + b[i]*b[i]
+  end
+
+  sa = sa / len
+  sb = sb / len
+  -- sab = sab / len
+  -- saa = saa / len
+  -- sbb = sbb / len
+
+  -- Formula from: https://en.wikipedia.org/wiki/Pearson_product-moment_correlation_coefficient#Mathematical_properties
+  local rho = (sab - len*sa*sb)/(math.sqrt(saa - len*sa*sa)*math.sqrt(sbb - len*sb*sb))
+  return rho
+end
+
+--[[
+Function: evaluatePredictionStats
+
+Method used to evaluate the current statistics on the generated predictions
+]]
+function Class:evaluatePredictionStats(opt,tdesc)
+  
+  -- Compute the stats for each steps and for a given threshold level
+  local res = torch.Tensor(10,opt.eval_size*3):zero()
+
+  local len = #tdesc.pred_values
+
+  -- for each possible threshold we have to collect the value of interest:
+  for i=1,10 do
+    for n=1,opt.eval_size do 
+      local thres = (i-1)/10
+      local preds = {}
+      local labels = {}
+
+      local good = 0
+
+      for j=1,len do
+        local p = (tdesc.pred_values[j]-0.5)*2.0
+        local b = (tdesc.label_values[j]-0.5)*2.0
+
+        if math.abs(p) > thres and tdesc.evalidx_values[j] == n then
+          good = good + (p*b>0.0 and 1.0 or 0.0)
+
+          table.insert(preds, p)
+          table.insert(labels, b)
+        end
+      end
+
+      -- Compute the correlation between those vectors:
+      res[i][3*n-2] = #preds
+      res[i][3*n-1] = #preds>0 and good/#preds or 0
+      res[i][3*n] = self:correlation(preds,labels)
+    end
+  end
+
+  self:debug("Correlation results for step 2:\n",res:narrow(2,4,3))
+end
 
 --[[
 Function: writeArray

@@ -419,6 +419,8 @@ function Class:evaluate(features,labels)
     end
   end
 
+  self:debug("Evaluating with features tensor: ", features)
+  
   self._gradParams:zero()
 
   local opt = self.opt

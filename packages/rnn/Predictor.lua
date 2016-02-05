@@ -60,6 +60,43 @@ function Class:initialize(opt)
 
     -- Perform initialization right here:
     self:handleInit{9}
+
+    -- Assign the global mean and devs values:
+    self:setFeatureMeanDev(1,1.1167946922797e-06, 0.0002137926639989)
+    self:setFeatureMeanDev(2,1.0937851584458e-05, 0.00068201060639694)
+    self:setFeatureMeanDev(3,1.0904000997543, 0.0070609608665109)
+    self:setFeatureMeanDev(4,1.1133430461996e-06, 0.00010457327880431)
+    self:setFeatureMeanDev(5,1.1144239806526e-06, 7.5600197305903e-05)
+    self:setFeatureMeanDev(7,-1.3221814469944e-06, 0.00023287530348171)
+    self:setFeatureMeanDev(8,-1.4317037312139e-05, 0.00061438168631867)
+    self:setFeatureMeanDev(9,0.72002333402634, 0.0079078543931246)
+    self:setFeatureMeanDev(10,-1.3234327980172e-06, 0.0001018301336444)
+    self:setFeatureMeanDev(11,-1.317716282756e-06, 7.150272722356e-05)
+    self:setFeatureMeanDev(13,-1.256926680071e-06, 0.00014564374578185)
+    self:setFeatureMeanDev(14,-1.2687735761574e-05, 0.0004287903138902)
+    self:setFeatureMeanDev(15,1.4894667863846, 0.018019337207079)
+    self:setFeatureMeanDev(16,-1.2421646715666e-06, 6.6827808041126e-05)
+    self:setFeatureMeanDev(17,-1.2356510978861e-06, 4.8035315558081e-05)
+    self:setFeatureMeanDev(19,-2.3461093690003e-07, 0.00025856320280582)
+    self:setFeatureMeanDev(20,-3.9922815631144e-06, 0.00065629271557555)
+    self:setFeatureMeanDev(21,0.67469322681427, 0.0076227253302932)
+    self:setFeatureMeanDev(22,-2.3637034018975e-07, 0.00011158806591993)
+    self:setFeatureMeanDev(23,-2.3277350180706e-07, 7.7527816756628e-05)
+    self:setFeatureMeanDev(25,2.0155125639576e-06, 0.00017177524568979)
+    self:setFeatureMeanDev(26,2.0215464246576e-05, 0.00043567316606641)
+    self:setFeatureMeanDev(27,1.385294675827, 0.015465151518583)
+    self:setFeatureMeanDev(28,2.0162792679912e-06, 7.362956966972e-05)
+    self:setFeatureMeanDev(29,2.0165434762021e-06, 5.0995357014472e-05)
+    self:setFeatureMeanDev(31,-1.133232558459e-06, 0.00021026007016189)
+    self:setFeatureMeanDev(32,-1.0959840437863e-05, 0.00065794604597613)
+    self:setFeatureMeanDev(33,0.99289971590042, 0.007167172152549)
+    self:setFeatureMeanDev(34,-1.1440915841376e-06, 0.00010107940033777)
+    self:setFeatureMeanDev(35,-1.1457550499472e-06, 7.286367326742e-05)
+    self:setFeatureMeanDev(37,-1.6480402109664e-06, 0.00016235667862929)
+    self:setFeatureMeanDev(38,-1.5622450519004e-05, 0.00042902864515781)
+    self:setFeatureMeanDev(39,120.65016937256, 1.3561074733734)
+    self:setFeatureMeanDev(40,-1.6354434819732e-06, 7.0794332714286e-05)
+    self:setFeatureMeanDev(41,-1.6214153220062e-06, 4.9545655201655e-05)
   end
 
   if opt.with_zmq then
@@ -76,6 +113,19 @@ function Class:initialize(opt)
   if self._dataFile then
     self._dataFile:close()
   end
+end
+
+--[[
+Function: setFeatureMeanDEv
+
+Assign the mean and deviation values to use for a given feature:
+]]
+function Class:setFeatureMeanDev(fid, mean, dev)
+  self.opt.feature_means = self.opt.feature_means or {}
+  self.opt.feature_devs = self.opt.feature_devs or {}
+
+  self.opt.feature_means[fid] = mean
+  self.opt.feature_devs[fid] = dev
 end
 
 --[[
@@ -190,6 +240,12 @@ function Class:getPrediction(tag)
     end
   end
 
+  -- Complete the non created nets:
+  local num = #preds
+  for i=num+1,self._numNets do
+    table.insert(preds,0.0)
+  end
+
   self:writePrediction(tag,preds)
 
   result = count==0 and 0.0 or result/count
@@ -207,7 +263,7 @@ function Class:writeRawInput(tag,data)
   -- Open the file for writing:
   local f = io.open("misc/" .. self.opt.suffix .. "_raw_inputs.csv","aw")
   local msg = tag.. "," .. table.concat(data,",") .. "\n"
-  self:debug("Writing raw input line: ", msg)
+  -- self:debug("Writing raw input line: ", msg)
   f:write(msg)
   f:close()
 end
@@ -241,7 +297,7 @@ function Class:writeFeatures(tag,features)
     msg = msg .. "," .. features[i]
   end
 
-  self:debug("Writing feature line: ", msg)
+  -- self:debug("Writing feature line: ", msg)
   f:write(msg)
   f:close()  
 end

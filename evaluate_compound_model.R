@@ -1,7 +1,7 @@
 
 # method used to evaluate a compound model
 
-evaluate_compound_model <- function(files,nsteps=50, offset=NULL)
+evaluate_compound_model <- function(files,nsteps=50, offset=NULL,invert=F)
 {
   levels <- seq(from=0.0, to=0.9, by=0.1)
   evals <- data.frame(siglevel=levels)
@@ -34,10 +34,16 @@ evaluate_compound_model <- function(files,nsteps=50, offset=NULL)
   # Compute the mean prediction:
   df$meanPred <- rowMeans(df[prednames])
   
+  sign = 1.0
+  if(invert)
+  {
+    sign <- -1.0    
+  }
+  
   # Now we compute the regular statistics:
   # only keep the data under the step given by nsteps
   # df <- filter(df, eval_index > 1 & eval_index <= nsteps)
-  df <- filter(df, eval_index == nsteps)
+  df <- filter(df, eval_index %in% nsteps)
   
   # apply the offset if provided:
   if(!is.null(offset))
@@ -46,7 +52,7 @@ evaluate_compound_model <- function(files,nsteps=50, offset=NULL)
   }
   
   # from the predictions and the labels we must substract 0.5 and mult by 2:
-  df <- mutate(df, pred = (meanPred-0.5)*2, lbl = (label-0.5)*2)
+  df <- mutate(df, pred = sign*(meanPred-0.5)*2, lbl = (label-0.5)*2)
   
   goodsign <- NULL
   corr <- NULL
